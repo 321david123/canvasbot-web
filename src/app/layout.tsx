@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CanvasBot — Your AI Class Assistant",
+  title: "CanvasBot — Tu asistente de clases con IA",
   description:
-    "AI that knows everything about your classes. Get WhatsApp reminders, ask questions, never miss a deadline.",
+    "La IA que sabe todo sobre tus clases. Recibe recordatorios por WhatsApp, pregunta lo que quieras, nunca pierdas una entrega.",
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="es" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >

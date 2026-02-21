@@ -46,16 +46,16 @@ export default function LoginPage() {
               CanvasBot
             </span>
           </Link>
-          <h1 className="mt-4 text-2xl font-bold">Welcome back</h1>
+          <h1 className="mt-4 text-2xl font-bold">Bienvenido de vuelta</h1>
           <p className="mt-1 text-sm text-muted">
-            Sign in to your account
+            Inicia sesion en tu cuenta
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
-              Email
+              Correo electronico
             </label>
             <input
               id="email"
@@ -63,7 +63,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="you@tec.mx"
+              placeholder="tu@tec.mx"
               className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
             />
           </div>
@@ -72,7 +72,7 @@ export default function LoginPage() {
               htmlFor="password"
               className="mb-1.5 block text-sm font-medium"
             >
-              Password
+              Contrasena
             </label>
             <input
               id="password"
@@ -96,14 +96,18 @@ export default function LoginPage() {
             disabled={loading}
             className="flex h-11 w-full items-center justify-center rounded-xl bg-accent text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign in"}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Iniciar sesion"
+            )}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted">
-          Don&apos;t have an account?{" "}
+          No tienes cuenta?{" "}
           <Link href="/signup" className="text-accent hover:text-accent-hover">
-            Sign up
+            Registrate
           </Link>
         </p>
       </div>

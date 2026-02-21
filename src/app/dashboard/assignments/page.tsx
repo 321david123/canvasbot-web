@@ -1,4 +1,4 @@
-import { Check, Clock, AlertTriangle, ExternalLink } from "lucide-react";
+import { Check, Clock, AlertTriangle } from "lucide-react";
 
 const mockAssignments = [
   { id: "1", name: "Tarea: Estructura condicional if", course: "Pensamiento computacional", due: "2026-02-16T23:59:00", status: "pending", points: 100 },
@@ -28,21 +28,14 @@ function StatusBadge({ status, score, points }: { status: string; score?: number
     return (
       <span className="inline-flex items-center gap-1 rounded-lg bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
         <Check className="h-3 w-3" />
-        Submitted
+        Entregada
       </span>
     );
   }
-  const now = new Date();
-  const due = new Date(mockAssignments.find((a) => a.status === status)?.due ?? "");
-  const overdue = due < now;
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium ${
-        overdue ? "bg-danger/10 text-danger" : "bg-warning/10 text-warning"
-      }`}
-    >
-      {overdue ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-      {overdue ? "Missing" : "Pending"}
+    <span className="inline-flex items-center gap-1 rounded-lg bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
+      <Clock className="h-3 w-3" />
+      Pendiente
     </span>
   );
 }
@@ -54,17 +47,16 @@ export default function AssignmentsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Assignments</h1>
+        <h1 className="text-2xl font-bold">Tareas</h1>
         <p className="mt-1 text-sm text-muted">
-          All your assignments across every course.
+          Todas tus tareas de todas las materias.
         </p>
       </div>
 
-      {/* Pending */}
       {pending.length > 0 && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-warning">
-            Pending ({pending.length})
+            Pendientes ({pending.length})
           </h2>
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="divide-y divide-border">
@@ -76,8 +68,8 @@ export default function AssignmentsPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{a.name}</p>
                     <p className="text-sm text-muted">
-                      {a.course} &middot; Due{" "}
-                      {new Date(a.due).toLocaleDateString(undefined, {
+                      {a.course} &middot; Entrega{" "}
+                      {new Date(a.due).toLocaleDateString("es-MX", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",
@@ -94,10 +86,9 @@ export default function AssignmentsPage() {
         </div>
       )}
 
-      {/* Submitted */}
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-success">
-          Completed ({submitted.length})
+          Completadas ({submitted.length})
         </h2>
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="divide-y divide-border">
@@ -110,7 +101,7 @@ export default function AssignmentsPage() {
                   <p className="truncate font-medium">{a.name}</p>
                   <p className="text-sm text-muted">
                     {a.course} &middot;{" "}
-                    {new Date(a.due).toLocaleDateString(undefined, {
+                    {new Date(a.due).toLocaleDateString("es-MX", {
                       weekday: "short",
                       month: "short",
                       day: "numeric",

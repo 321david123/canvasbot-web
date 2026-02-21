@@ -17,11 +17,11 @@ import {
 import { useState } from "react";
 
 const navItems = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/assignments", label: "Assignments", icon: BookOpen },
-  { href: "/dashboard/announcements", label: "Announcements", icon: Bell },
-  { href: "/dashboard/chat", label: "AI Chat", icon: MessageSquare },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
+  { href: "/dashboard/assignments", label: "Tareas", icon: BookOpen },
+  { href: "/dashboard/announcements", label: "Anuncios", icon: Bell },
+  { href: "/dashboard/chat", label: "Chat IA", icon: MessageSquare },
+  { href: "/dashboard/settings", label: "Ajustes", icon: Settings },
 ];
 
 export function DashboardShell({
@@ -88,7 +88,7 @@ export function DashboardShell({
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted transition-colors hover:bg-card-hover hover:text-foreground"
         >
           <LogOut className="h-4 w-4" />
-          Sign out
+          Cerrar sesion
         </button>
       </div>
     </div>
@@ -96,12 +96,10 @@ export function DashboardShell({
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Desktop sidebar */}
       <aside className="hidden w-64 shrink-0 border-r border-border md:block">
         {sidebar}
       </aside>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 md:hidden"
@@ -109,7 +107,6 @@ export function DashboardShell({
         />
       )}
 
-      {/* Mobile drawer */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-background transition-transform md:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -124,7 +121,6 @@ export function DashboardShell({
         {sidebar}
       </aside>
 
-      {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <header className="flex h-16 items-center gap-4 border-b border-border px-6 md:hidden">
           <button

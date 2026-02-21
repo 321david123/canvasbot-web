@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { GraduationCap, Loader2, Check } from "lucide-react";
 
@@ -13,7 +12,6 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,17 +44,17 @@ export default function SignupPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
             <Check className="h-6 w-6 text-success" />
           </div>
-          <h1 className="text-2xl font-bold">Check your email</h1>
+          <h1 className="text-2xl font-bold">Revisa tu correo</h1>
           <p className="mt-2 text-sm text-muted">
-            We sent a confirmation link to{" "}
-            <span className="text-foreground">{email}</span>. Click it to
-            activate your account.
+            Te enviamos un link de confirmacion a{" "}
+            <span className="text-foreground">{email}</span>. Dale click para
+            activar tu cuenta.
           </p>
           <Link
             href="/login"
             className="mt-6 inline-flex h-11 items-center justify-center rounded-xl border border-border px-6 text-sm font-medium transition-colors hover:bg-card"
           >
-            Go to sign in
+            Ir a iniciar sesion
           </Link>
         </div>
       </div>
@@ -75,16 +73,16 @@ export default function SignupPage() {
               CanvasBot
             </span>
           </Link>
-          <h1 className="mt-4 text-2xl font-bold">Create your account</h1>
+          <h1 className="mt-4 text-2xl font-bold">Crea tu cuenta</h1>
           <p className="mt-1 text-sm text-muted">
-            Start getting AI-powered class insights
+            Empieza a recibir informacion de tus clases con IA
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="name" className="mb-1.5 block text-sm font-medium">
-              Full name
+              Nombre completo
             </label>
             <input
               id="name"
@@ -98,7 +96,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
-              Email
+              Correo electronico
             </label>
             <input
               id="email"
@@ -106,7 +104,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="you@tec.mx"
+              placeholder="tu@tec.mx"
               className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
             />
           </div>
@@ -115,7 +113,7 @@ export default function SignupPage() {
               htmlFor="password"
               className="mb-1.5 block text-sm font-medium"
             >
-              Password
+              Contrasena
             </label>
             <input
               id="password"
@@ -124,7 +122,7 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
-              placeholder="At least 6 characters"
+              placeholder="Minimo 6 caracteres"
               className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
             />
           </div>
@@ -143,15 +141,15 @@ export default function SignupPage() {
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "Create account"
+              "Crear cuenta"
             )}
           </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted">
-          Already have an account?{" "}
+          Ya tienes cuenta?{" "}
           <Link href="/login" className="text-accent hover:text-accent-hover">
-            Sign in
+            Inicia sesion
           </Link>
         </p>
       </div>

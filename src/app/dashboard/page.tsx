@@ -15,15 +15,15 @@ const mockCourses = [
 ];
 
 const mockUpcoming = [
-  { name: "Tarea: Estructura condicional if", course: "Pensamiento Computacional", due: "Tomorrow, 11:59 PM", urgent: true },
-  { name: "TI 2. Analisis de variables", course: "Vision Holistica", due: "Thu Feb 20, 11:59 PM", urgent: false },
-  { name: "Examen rapido: Algoritmos", course: "Pensamiento Computacional", due: "Fri Feb 21, 8:50 AM", urgent: false },
+  { name: "Tarea: Estructura condicional if", course: "Pensamiento Computacional", due: "Manana, 11:59 PM", urgent: true },
+  { name: "TI 2. Analisis de variables", course: "Vision Holistica", due: "Jue 20 Feb, 11:59 PM", urgent: false },
+  { name: "Examen rapido: Algoritmos", course: "Pensamiento Computacional", due: "Vie 21 Feb, 8:50 AM", urgent: false },
 ];
 
 const mockActivity = [
-  { type: "grade", text: "Grade posted: Tarea Programas que realizan calculos — 100/100", time: "2h ago" },
-  { type: "announcement", text: "New announcement in Microeconomia: Cambio de salon", time: "5h ago" },
-  { type: "assignment", text: "New assignment: Evidencia 1 in Vision Holistica", time: "1d ago" },
+  { type: "grade", text: "Calificacion publicada: Tarea Programas que realizan calculos — 100/100", time: "hace 2h" },
+  { type: "announcement", text: "Nuevo anuncio en Microeconomia: Cambio de salon", time: "hace 5h" },
+  { type: "assignment", text: "Nueva tarea: Evidencia 1 en Vision Holistica", time: "hace 1d" },
 ];
 
 function StatCard({ icon: Icon, label, value, sub }: { icon: typeof BookOpen; label: string; value: string; sub?: string }) {
@@ -47,25 +47,23 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">Inicio</h1>
         <p className="mt-1 text-sm text-muted">
-          Your classes at a glance. Last synced 12 min ago.
+          Tus clases de un vistazo. Ultima sincronizacion hace 12 min.
         </p>
       </div>
 
-      {/* Stats row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={BookOpen} label="Active courses" value="4" />
-        <StatCard icon={Clock} label="Due this week" value="3" sub="1 urgent" />
-        <StatCard icon={AlertTriangle} label="Not submitted" value="6" />
-        <StatCard icon={TrendingUp} label="Avg grade" value="98.5" sub="across all courses" />
+        <StatCard icon={BookOpen} label="Materias activas" value="4" />
+        <StatCard icon={Clock} label="Entregas esta semana" value="3" sub="1 urgente" />
+        <StatCard icon={AlertTriangle} label="Sin entregar" value="6" />
+        <StatCard icon={TrendingUp} label="Promedio" value="98.5" sub="todas las materias" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Upcoming deadlines */}
         <div className="rounded-2xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h2 className="font-semibold">Upcoming deadlines</h2>
+            <h2 className="font-semibold">Proximas entregas</h2>
             <Clock className="h-4 w-4 text-muted" />
           </div>
           <div className="divide-y divide-border">
@@ -87,10 +85,9 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        {/* Recent activity */}
         <div className="rounded-2xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
-            <h2 className="font-semibold">Recent activity</h2>
+            <h2 className="font-semibold">Actividad reciente</h2>
             <Bell className="h-4 w-4 text-muted" />
           </div>
           <div className="divide-y divide-border">
@@ -107,9 +104,8 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* Courses grid */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold">Your courses</h2>
+        <h2 className="mb-4 text-lg font-semibold">Tus materias</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           {mockCourses.map((course) => (
             <div
@@ -124,10 +120,10 @@ export default function DashboardOverview() {
                 <Wifi className="h-4 w-4 text-success" />
               </div>
               <div className="mt-4 flex gap-4 text-sm text-muted">
-                <span>{course.assignments} assignments</span>
+                <span>{course.assignments} tareas</span>
                 {course.pending > 0 && (
                   <span className="text-warning">
-                    {course.pending} pending
+                    {course.pending} pendientes
                   </span>
                 )}
               </div>

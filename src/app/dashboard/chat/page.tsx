@@ -12,7 +12,7 @@ const INITIAL_MESSAGES: Message[] = [
   {
     role: "assistant",
     content:
-      "Hey! I'm your Canvas AI assistant. I know everything about your courses — assignments, syllabi, grades, announcements, and lecture notes. Ask me anything!",
+      "Hola! Soy tu asistente de Canvas con IA. Se todo sobre tus materias — tareas, temarios, calificaciones, anuncios y notas de clase. Preguntame lo que sea!",
   },
 ];
 
@@ -36,25 +36,24 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    // Simulated AI response (replace with real API call)
     await new Promise((r) => setTimeout(r, 1500));
 
-    const responses: Record<string, string> = {
-      default:
-        "I'd need to check your Canvas data to answer that precisely. Once the backend is connected, I'll have real-time info about all your courses, assignments, and grades!",
-    };
-
     const lower = text.toLowerCase();
-    let reply = responses.default;
-    if (lower.includes("homework") || lower.includes("tarea") || lower.includes("due")) {
+    let reply =
+      "Necesitaria revisar tus datos de Canvas para contestarte con precision. Cuando el backend este conectado, tendre informacion en tiempo real de todas tus materias!";
+
+    if (lower.includes("tarea") || lower.includes("entregar") || lower.includes("pendiente") || lower.includes("homework")) {
       reply =
-        "Based on your Canvas data, you have 3 assignments due this week:\n\n1. **Tarea: Estructura condicional if** — Pensamiento Computacional — Due tomorrow\n2. **TI 2. Analisis de variables** — Vision Holistica — Due Thursday\n3. **Examen rapido: Algoritmos** — Pensamiento Computacional — Due Friday\n\nI'd recommend starting with #1 since it's due tomorrow. Want details on any of these?";
-    } else if (lower.includes("grade") || lower.includes("score") || lower.includes("calificacion")) {
+        "Segun tu Canvas, tienes 3 entregas esta semana:\n\n1. **Tarea: Estructura condicional if** — Pensamiento Computacional — Manana 11:59 PM\n2. **TI 2. Analisis de variables** — Vision Holistica — Jueves 11:59 PM\n3. **Examen rapido: Algoritmos** — Pensamiento Computacional — Viernes 8:50 AM\n\nTe recomiendo empezar con la #1 porque es para manana. Quieres que te explique el tema?";
+    } else if (lower.includes("calificacion") || lower.includes("nota") || lower.includes("score") || lower.includes("saque")) {
       reply =
-        "Here are your recent grades in **Pensamiento Computacional**:\n\n- Tarea: Programas que realizan calculos — **100/100**\n- Laboratorio: Problemas con calculos — **100/100**\n- Examen: Elementos de un Programa — **94/100**\n- Examen: Valores Booleanos — **100/100**\n- Ejercicios: Prioridad operaciones — **100/100**\n\nYour average is **98.8%** — great job!";
-    } else if (lower.includes("professor") || lower.includes("profesor") || lower.includes("teacher")) {
+        "Tus ultimas calificaciones en **Pensamiento Computacional**:\n\n- Tarea: Programas que realizan calculos — **100/100**\n- Laboratorio: Problemas con calculos — **100/100**\n- Examen: Elementos de un Programa — **94/100**\n- Examen: Valores Booleanos — **100/100**\n- Ejercicios: Prioridad operaciones — **100/100**\n\nTu promedio es **98.8%** — vas muy bien!";
+    } else if (lower.includes("profesor") || lower.includes("profe") || lower.includes("teacher") || lower.includes("maestro")) {
       reply =
-        "Your professors this semester:\n\n- **Microeconomia**: Check syllabus for details\n- **Modelacion matematica**: Check syllabus for details\n- **Pensamiento computacional**: Maria del Consuelo Serrato Arias\n- **Vision holistica**: Check syllabus for details";
+        "Tus profesores este semestre:\n\n- **Microeconomia**: Revisa el syllabus\n- **Modelacion matematica**: Revisa el syllabus\n- **Pensamiento computacional**: Maria del Consuelo Serrato Arias\n- **Vision holistica**: Revisa el syllabus";
+    } else if (lower.includes("clase") || lower.includes("horario") || lower.includes("hoy")) {
+      reply =
+        "Hoy tienes:\n\n- **7:10 - 8:50 AM** — Pensamiento computacional para ingenieria (Salon 4205)\n- **9:10 - 10:50 AM** — Modelacion matematica fundamental (Aula 14203)\n\nPara Pensamiento Computacional, el tema de hoy es sobre estructuras condicionales (if/else). Te recomiendo repasar los ejercicios del modulo 3.";
     }
 
     setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
@@ -64,13 +63,12 @@ export default function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col md:h-[calc(100vh-5rem)]">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold">AI Chat</h1>
+        <h1 className="text-2xl font-bold">Chat IA</h1>
         <p className="mt-1 text-sm text-muted">
-          Ask anything about your classes, assignments, or lectures.
+          Pregunta lo que sea sobre tus clases, tareas o apuntes.
         </p>
       </div>
 
-      {/* Messages */}
       <div
         ref={scrollRef}
         className="flex-1 space-y-4 overflow-y-auto rounded-2xl border border-border bg-card p-4"
@@ -118,13 +116,12 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Input */}
       <form onSubmit={handleSend} className="mt-4 flex gap-3">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your classes..."
+          placeholder="Pregunta sobre tus clases..."
           className="h-12 flex-1 rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
         />
         <button

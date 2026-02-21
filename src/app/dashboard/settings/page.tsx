@@ -23,17 +23,16 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <h1 className="text-2xl font-bold">Ajustes</h1>
         <p className="mt-1 text-sm text-muted">
-          Configure your CanvasBot experience.
+          Configura tu experiencia con CanvasBot.
         </p>
       </div>
 
-      {/* Canvas connection */}
       <div className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Canvas connection</h2>
+        <h2 className="font-semibold">Conexion con Canvas</h2>
         <p className="mt-1 text-sm text-muted">
-          Link your Canvas account so we can read your courses.
+          Conecta tu cuenta de Canvas para que podamos leer tus materias.
         </p>
         <div className="mt-4 flex items-center gap-4">
           <div
@@ -48,25 +47,25 @@ export default function SettingsPage() {
             ) : (
               <WifiOff className="h-4 w-4" />
             )}
-            {canvasConnected ? "Connected" : "Not connected"}
+            {canvasConnected ? "Conectado" : "No conectado"}
           </div>
           <button className="rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover">
-            {canvasConnected ? "Reconnect" : "Connect Canvas"}
+            {canvasConnected ? "Reconectar" : "Conectar Canvas"}
           </button>
         </div>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* WhatsApp */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-semibold">WhatsApp notifications</h2>
+          <h2 className="font-semibold">Notificaciones por WhatsApp</h2>
           <p className="mt-1 text-sm text-muted">
-            Get deadline reminders and Canvas updates on WhatsApp.
+            Recibe recordatorios de entregas y actualizaciones de Canvas por
+            WhatsApp.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium">
-                Your WhatsApp number
+                Tu numero de WhatsApp
               </label>
               <input
                 type="tel"
@@ -78,7 +77,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">
-                Daily digest hour
+                Hora del resumen diario
               </label>
               <select
                 value={digestHour}
@@ -101,25 +100,24 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Refresh */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-semibold">Canvas sync</h2>
+          <h2 className="font-semibold">Sincronizacion con Canvas</h2>
           <p className="mt-1 text-sm text-muted">
-            How often should we check Canvas for updates.
+            Cada cuanto quieres que revisemos Canvas para buscar cambios.
           </p>
           <div className="mt-4 max-w-xs">
             <label className="mb-1.5 block text-sm font-medium">
-              Refresh interval (minutes)
+              Intervalo de actualizacion (minutos)
             </label>
             <select
               value={refreshInterval}
               onChange={(e) => setRefreshInterval(e.target.value)}
               className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none transition-colors focus:border-accent"
             >
-              <option value="15">Every 15 minutes</option>
-              <option value="30">Every 30 minutes</option>
-              <option value="60">Every hour</option>
-              <option value="120">Every 2 hours</option>
+              <option value="15">Cada 15 minutos</option>
+              <option value="30">Cada 30 minutos</option>
+              <option value="60">Cada hora</option>
+              <option value="120">Cada 2 horas</option>
             </select>
           </div>
         </div>
@@ -135,10 +133,10 @@ export default function SettingsPage() {
             ) : (
               <Save className="h-4 w-4" />
             )}
-            Save settings
+            Guardar ajustes
           </button>
           {saved && (
-            <span className="text-sm text-success">Settings saved!</span>
+            <span className="text-sm text-success">Ajustes guardados!</span>
           )}
         </div>
       </form>
