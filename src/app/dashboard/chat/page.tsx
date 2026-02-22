@@ -23,7 +23,10 @@ export default function ChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
   }, [messages]);
 
   async function handleSend(e: React.FormEvent) {
@@ -36,28 +39,40 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
 
-    const lower = text.toLowerCase();
-    let reply =
-      "Necesitaria revisar tus datos de Canvas para contestarte con precision. Cuando el backend este conectado, tendre informacion en tiempo real de todas tus materias!";
+      const data = await res.json();
 
-    if (lower.includes("tarea") || lower.includes("entregar") || lower.includes("pendiente") || lower.includes("homework")) {
-      reply =
-        "Segun tu Canvas, tienes 3 entregas esta semana:\n\n1. **Tarea: Estructura condicional if** — Pensamiento Computacional — Manana 11:59 PM\n2. **TI 2. Analisis de variables** — Vision Holistica — Jueves 11:59 PM\n3. **Examen rapido: Algoritmos** — Pensamiento Computacional — Viernes 8:50 AM\n\nTe recomiendo empezar con la #1 porque es para manana. Quieres que te explique el tema?";
-    } else if (lower.includes("calificacion") || lower.includes("nota") || lower.includes("score") || lower.includes("saque")) {
-      reply =
-        "Tus ultimas calificaciones en **Pensamiento Computacional**:\n\n- Tarea: Programas que realizan calculos — **100/100**\n- Laboratorio: Problemas con calculos — **100/100**\n- Examen: Elementos de un Programa — **94/100**\n- Examen: Valores Booleanos — **100/100**\n- Ejercicios: Prioridad operaciones — **100/100**\n\nTu promedio es **98.8%** — vas muy bien!";
-    } else if (lower.includes("profesor") || lower.includes("profe") || lower.includes("teacher") || lower.includes("maestro")) {
-      reply =
-        "Tus profesores este semestre:\n\n- **Microeconomia**: Revisa el syllabus\n- **Modelacion matematica**: Revisa el syllabus\n- **Pensamiento computacional**: Maria del Consuelo Serrato Arias\n- **Vision holistica**: Revisa el syllabus";
-    } else if (lower.includes("clase") || lower.includes("horario") || lower.includes("hoy")) {
-      reply =
-        "Hoy tienes:\n\n- **7:10 - 8:50 AM** — Pensamiento computacional para ingenieria (Salon 4205)\n- **9:10 - 10:50 AM** — Modelacion matematica fundamental (Aula 14203)\n\nPara Pensamiento Computacional, el tema de hoy es sobre estructuras condicionales (if/else). Te recomiendo repasar los ejercicios del modulo 3.";
+      if (!res.ok) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.error || "Error al contactar al servidor.",
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: data.reply },
+        ]);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Error de conexion. Asegurate de que el servidor esta corriendo.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
     }
-
-    setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-    setLoading(false);
   }
 
   return (
@@ -65,7 +80,8 @@ export default function ChatPage() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold">Chat IA</h1>
         <p className="mt-1 text-sm text-muted">
-          Pregunta lo que sea sobre tus clases, tareas o apuntes.
+          Pregunta lo que sea sobre tus clases, tareas o apuntes. Usa datos
+          reales de tu Canvas.
         </p>
       </div>
 

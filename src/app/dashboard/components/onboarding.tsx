@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   GraduationCap,
   MonitorSmartphone,
@@ -13,6 +13,8 @@ import {
   QrCode,
   SkipForward,
   X,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 
 interface OnboardingProps {
@@ -25,8 +27,11 @@ const TOTAL_STEPS = 3;
 export function Onboarding({ userName, onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
   const [canvasConnected, setCanvasConnected] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState("+52");
-  const [whatsappConnected, setWhatsappConnected] = useState(false);
+  const [canvasLoading, setCanvasLoading] = useState(false);
+  const [canvasLoginStarted, setCanvasLoginStarted] = useState(false);
+  const [loginDoneLoading, setLoginDoneLoading] = useState(false);
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+  const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
   const [skipWhatsapp, setSkipWhatsapp] = useState(false);
   const [autoHomework, setAutoHomework] = useState(false);
 
@@ -36,21 +41,73 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
     { icon: Settings2, label: "Listo" },
   ];
 
+  useEffect(() => {
+    fetch("/api/canvas/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.canvasConnected && data.hasData) {
+          setCanvasConnected(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleCanvasLogin() {
+    setCanvasLoading(true);
+    try {
+      const res = await fetch("/api/canvas/login", { method: "POST" });
+      const data = await res.json();
+      if (data.status === "started" || data.status === "already_running") {
+        setCanvasLoginStarted(true);
+      }
+    } catch {
+      // error
+    } finally {
+      setCanvasLoading(false);
+    }
+  }
+
+  async function handleLoginDone() {
+    setLoginDoneLoading(true);
+    try {
+      await fetch("/api/canvas/login-done", { method: "POST" });
+
+      setScrapeLoading(true);
+      setScrapeMessage("Leyendo tus materias...");
+      const scrapeRes = await fetch("/api/canvas/scrape", { method: "POST" });
+      const scrapeData = await scrapeRes.json();
+
+      const statusRes = await fetch("/api/canvas/status");
+      const statusData = await statusRes.json();
+
+      if (statusData.hasData) {
+        setCanvasConnected(true);
+        setScrapeMessage(`${statusData.courseCount} materias encontradas.`);
+      } else {
+        setScrapeMessage("No se encontraron materias. Revisa que hayas iniciado sesion correctamente.");
+      }
+    } catch {
+      setScrapeMessage("Error al guardar la sesion.");
+    } finally {
+      setLoginDoneLoading(false);
+      setScrapeLoading(false);
+      setCanvasLoginStarted(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      {/* Modal card */}
       <div className="relative mx-4 w-full max-w-lg overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
-        {/* Skip button */}
+        {/* Skip */}
         <button
           onClick={onComplete}
           className="absolute right-4 top-4 z-10 flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted transition-colors hover:text-foreground"
-          title="Saltar configuracion"
         >
           Saltar
           <X className="h-3.5 w-3.5" />
         </button>
 
-        {/* Top progress bar */}
+        {/* Progress bar */}
         <div className="flex h-1.5 w-full bg-border">
           {steps.map((_, i) => (
             <div
@@ -62,7 +119,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
           ))}
         </div>
 
-        {/* Step label bar */}
+        {/* Step pills */}
         <div className="flex items-center justify-between border-b border-border px-6 py-3">
           <div className="flex items-center gap-3">
             {steps.map((s, i) => {
@@ -95,7 +152,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
 
         {/* Content */}
         <div className="max-h-[65vh] overflow-y-auto px-6 py-6">
-          {/* ─── Step 1: Canvas ─── */}
+          {/* Step 1: Canvas */}
           {step === 0 && (
             <div className="space-y-5">
               <div>
@@ -129,8 +186,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                       2
                     </span>
                     <span>
-                      Inicias sesion con tu cuenta normal — no guardamos tu
-                      contrasena
+                      Inicias sesion con tu cuenta — no guardamos tu contrasena
                     </span>
                   </li>
                   <li className="flex gap-3">
@@ -138,22 +194,14 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                       3
                     </span>
                     <span>
-                      El bot guarda la sesion y empieza a leer todo
-                      automaticamente
+                      Haz click en &ldquo;Ya inicie sesion&rdquo; y el bot lee
+                      todo automaticamente
                     </span>
                   </li>
                 </ol>
               </div>
 
-              {!canvasConnected ? (
-                <button
-                  onClick={() => setCanvasConnected(true)}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Abrir Canvas e iniciar sesion
-                </button>
-              ) : (
+              {canvasConnected ? (
                 <div className="flex items-center gap-3 rounded-xl bg-success/10 px-4 py-3 ring-1 ring-success/20">
                   <Check className="h-5 w-5 text-success" />
                   <div>
@@ -161,15 +209,55 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                       Canvas conectado
                     </p>
                     <p className="text-xs text-muted">
-                      4 materias encontradas. El bot ya esta leyendo todo.
+                      {scrapeMessage || "El bot ya tiene acceso a tus materias."}
                     </p>
                   </div>
+                </div>
+              ) : !canvasLoginStarted ? (
+                <button
+                  onClick={handleCanvasLogin}
+                  disabled={canvasLoading}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {canvasLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-4 w-4" />
+                  )}
+                  Abrir Canvas e iniciar sesion
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
+                    <p className="text-sm">
+                      Se abrio una ventana de navegador. Inicia sesion en Canvas
+                      con tu cuenta del Tec. Cuando veas tu dashboard, haz
+                      click aqui abajo.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleLoginDone}
+                    disabled={loginDoneLoading || scrapeLoading}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-success text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                  >
+                    {loginDoneLoading || scrapeLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {scrapeLoading ? "Leyendo materias..." : "Guardando sesion..."}
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Ya inicie sesion
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* ─── Step 2: WhatsApp ─── */}
+          {/* Step 2: WhatsApp */}
           {step === 1 && (
             <div className="space-y-5">
               <div>
@@ -204,72 +292,19 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                     </ul>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium">
-                      Tu numero de WhatsApp
-                    </label>
-                    <input
-                      type="tel"
-                      value={whatsappNumber}
-                      onChange={(e) => setWhatsappNumber(e.target.value)}
-                      placeholder="+52 81 1234 5678"
-                      className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
-                    />
-                    <p className="mt-1 text-xs text-muted">
-                      Con codigo de pais (+52 Mexico)
-                    </p>
-                  </div>
-
                   <div className="rounded-xl bg-background p-4">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
                       Como conectarlo
                     </p>
-                    <ol className="space-y-3 text-sm">
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
-                          1
-                        </span>
-                        <span>Da click en el boton de abajo — aparece un QR</span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
-                          2
-                        </span>
-                        <span>
-                          En WhatsApp abre Ajustes &rarr; Dispositivos vinculados
-                          &rarr; Vincular
-                        </span>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
-                          3
-                        </span>
-                        <span>Escaneas el QR y listo</span>
-                      </li>
-                    </ol>
+                    <p className="text-sm text-muted">
+                      Ejecuta{" "}
+                      <code className="rounded bg-card px-1.5 py-0.5 text-xs text-accent">
+                        npm run whatsapp
+                      </code>{" "}
+                      en la terminal del proyecto. Aparecera un codigo QR que
+                      escaneas desde WhatsApp &rarr; Dispositivos vinculados.
+                    </p>
                   </div>
-
-                  {!whatsappConnected ? (
-                    <button
-                      onClick={() => setWhatsappConnected(true)}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-                    >
-                      <QrCode className="h-4 w-4" />
-                      Mostrar codigo QR
-                    </button>
-                  ) : (
-                    <div className="flex items-center gap-3 rounded-xl bg-success/10 px-4 py-3 ring-1 ring-success/20">
-                      <Check className="h-5 w-5 text-success" />
-                      <div>
-                        <p className="text-sm font-semibold text-success">
-                          WhatsApp conectado
-                        </p>
-                        <p className="text-xs text-muted">
-                          Te mandamos un mensaje de prueba.
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
                   <button
                     onClick={() => setSkipWhatsapp(true)}
@@ -299,23 +334,20 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
             </div>
           )}
 
-          {/* ─── Step 3: Preferences ─── */}
+          {/* Step 3: Preferences */}
           {step === 2 && (
             <div className="space-y-5">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-success">
                   Paso 3 — Ultimo
                 </div>
-                <h2 className="mt-3 text-xl font-bold">
-                  Personaliza tu bot
-                </h2>
+                <h2 className="mt-3 text-xl font-bold">Personaliza tu bot</h2>
                 <p className="mt-1 text-sm text-muted">
                   Ajusta como funciona antes de empezar. Puedes cambiar todo
                   despues en Ajustes.
                 </p>
               </div>
 
-              {/* Auto-homework toggle */}
               <div className="rounded-xl bg-background p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -347,24 +379,6 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 )}
               </div>
 
-              {/* Daily digest time */}
-              <div className="rounded-xl bg-background p-4">
-                <p className="text-sm font-semibold">Resumen diario</p>
-                <p className="mt-0.5 text-xs text-muted">
-                  A que hora quieres recibir tu resumen de pendientes?
-                </p>
-                <select
-                  defaultValue="7"
-                  className="mt-3 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition-colors focus:border-accent"
-                >
-                  <option value="6">6:00 AM</option>
-                  <option value="7">7:00 AM</option>
-                  <option value="8">8:00 AM</option>
-                  <option value="9">9:00 AM</option>
-                </select>
-              </div>
-
-              {/* Summary of what's set up */}
               <div className="rounded-xl bg-background p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
                   Resumen de tu configuracion
@@ -382,22 +396,9 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                     </span>
                   </li>
                   <li className="flex items-center gap-2">
-                    {whatsappConnected ? (
-                      <Check className="h-4 w-4 text-success" />
-                    ) : skipWhatsapp ? (
-                      <SkipForward className="h-4 w-4 text-muted" />
-                    ) : (
-                      <X className="h-4 w-4 text-danger" />
-                    )}
-                    <span
-                      className={whatsappConnected ? "" : "text-muted"}
-                    >
-                      WhatsApp{" "}
-                      {whatsappConnected
-                        ? "conectado"
-                        : skipWhatsapp
-                        ? "— omitido"
-                        : "— no conectado"}
+                    <SkipForward className="h-4 w-4 text-muted" />
+                    <span className="text-muted">
+                      WhatsApp — configurar despues
                     </span>
                   </li>
                   <li className="flex items-center gap-2">
@@ -415,7 +416,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
           )}
         </div>
 
-        {/* Footer with nav buttons */}
+        {/* Footer nav */}
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           {step > 0 ? (
             <button

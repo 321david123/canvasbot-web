@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
   MonitorSmartphone,
   MessageSquare,
   ChevronRight,
@@ -19,12 +18,9 @@ export function SetupBanner({
 }: SetupBannerProps) {
   if (canvasConnected && whatsappConnected) return null;
 
-  const missingCanvas = !canvasConnected;
-  const missingWhatsapp = !whatsappConnected;
-
   return (
-    <div className="mb-6 space-y-3">
-      {missingCanvas && (
+    <div className="space-y-3">
+      {!canvasConnected && (
         <div className="flex items-center justify-between rounded-2xl border border-warning/30 bg-warning/5 px-5 py-4">
           <div className="flex items-start gap-3">
             <MonitorSmartphone className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
@@ -48,7 +44,7 @@ export function SetupBanner({
         </div>
       )}
 
-      {missingWhatsapp && canvasConnected && (
+      {!whatsappConnected && canvasConnected && (
         <div className="flex items-center justify-between rounded-2xl border border-accent/30 bg-accent/5 px-5 py-4">
           <div className="flex items-start gap-3">
             <MessageSquare className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
@@ -58,8 +54,7 @@ export function SetupBanner({
               </p>
               <p className="mt-0.5 text-sm text-muted">
                 Sin WhatsApp solo puedes usar el dashboard. Conectalo para
-                recibir recordatorios, resumen diario y poder preguntar desde tu
-                telefono.
+                recibir recordatorios y poder preguntar desde tu telefono.
               </p>
             </div>
           </div>
