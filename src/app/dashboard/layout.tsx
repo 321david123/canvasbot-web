@@ -17,13 +17,5 @@ export default async function DashboardLayout({
   const name =
     user.user_metadata?.full_name || user.email?.split("@")[0] || "Estudiante";
 
-  const createdAt = new Date(user.created_at);
-  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
-  const isNewUser = createdAt > fiveMinAgo;
-
-  return (
-    <DashboardWrapper userName={name} isNewUser={isNewUser}>
-      {children}
-    </DashboardWrapper>
-  );
+  return <DashboardWrapper userName={name}>{children}</DashboardWrapper>;
 }
