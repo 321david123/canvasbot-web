@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { DashboardShell } from "./components/dashboard-shell";
+import { DashboardWrapper } from "./components/dashboard-wrapper";
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +15,15 @@ export default async function DashboardLayout({
   if (!user) redirect("/login");
 
   const name =
-    user.user_metadata?.full_name || user.email?.split("@")[0] || "Student";
+    user.user_metadata?.full_name || user.email?.split("@")[0] || "Estudiante";
 
-  return <DashboardShell userName={name}>{children}</DashboardShell>;
+  const createdAt = new Date(user.created_at);
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const isNewUser = createdAt > fiveMinAgo;
+
+  return (
+    <DashboardWrapper userName={name} isNewUser={isNewUser}>
+      {children}
+    </DashboardWrapper>
+  );
 }

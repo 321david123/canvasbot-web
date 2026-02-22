@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { GraduationCap, Loader2, Check } from "lucide-react";
+import { GraduationCap, Loader2 } from "lucide-react";
+
+function isValidTecEmail(email: string): boolean {
+  return /^[^\s@]+@(tec\.mx|itesm\.mx)$/i.test(email.trim());
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -11,54 +16,46 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const router = useRouter();
+
+  const tecValid = isValidTecEmail(email);
+  const canSubmit = name.trim().length > 0 && tecValid && password.length >= 6;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canSubmit) return;
     setError(null);
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
-      email,
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: email.trim(),
       password,
       options: {
-        data: { full_name: name },
+        data: { full_name: name.trim(), onboarding_step: 0 },
+        emailRedirectTo: undefined,
       },
     });
 
-    if (error) {
-      setError(error.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
       return;
     }
 
-    setSuccess(true);
-    setLoading(false);
-  }
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
 
-  if (success) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-sm text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-            <Check className="h-6 w-6 text-success" />
-          </div>
-          <h1 className="text-2xl font-bold">Revisa tu correo</h1>
-          <p className="mt-2 text-sm text-muted">
-            Te enviamos un link de confirmacion a{" "}
-            <span className="text-foreground">{email}</span>. Dale click para
-            activar tu cuenta.
-          </p>
-          <Link
-            href="/login"
-            className="mt-6 inline-flex h-11 items-center justify-center rounded-xl border border-border px-6 text-sm font-medium transition-colors hover:bg-card"
-          >
-            Ir a iniciar sesion
-          </Link>
-        </div>
-      </div>
-    );
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/dashboard");
+    router.refresh();
   }
 
   return (
@@ -75,7 +72,7 @@ export default function SignupPage() {
           </Link>
           <h1 className="mt-4 text-2xl font-bold">Crea tu cuenta</h1>
           <p className="mt-1 text-sm text-muted">
-            Empieza a recibir informacion de tus clases con IA
+            Usa tu correo institucional del Tec de Monterrey
           </p>
         </div>
 
@@ -96,7 +93,7 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor="email" className="mb-1.5 block text-sm font-medium">
-              Correo electronico
+              Correo del Tec
             </label>
             <input
               id="email"
@@ -104,9 +101,18 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="tu@tec.mx"
-              className="h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
+              placeholder="A01234567@tec.mx"
+              className={`h-11 w-full rounded-xl border bg-card px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent ${
+                email.length > 0 && !tecValid
+                  ? "border-danger"
+                  : "border-border"
+              }`}
             />
+            {email.length > 0 && !tecValid && (
+              <p className="mt-1.5 text-xs text-danger">
+                Solo se permiten correos @tec.mx o @itesm.mx
+              </p>
+            )}
           </div>
           <div>
             <label
@@ -135,7 +141,7 @@ export default function SignupPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !canSubmit}
             className="flex h-11 w-full items-center justify-center rounded-xl bg-accent text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
           >
             {loading ? (

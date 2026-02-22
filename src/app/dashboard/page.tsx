@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Wifi,
 } from "lucide-react";
+import { SetupBanner } from "./components/setup-banner";
 
 const mockCourses = [
   { id: "652358", name: "Microeconomia", code: "Gpo 401", assignments: 3, pending: 1 },
@@ -46,6 +47,7 @@ function StatCard({ icon: Icon, label, value, sub }: { icon: typeof BookOpen; la
 export default function DashboardOverview() {
   return (
     <div className="space-y-8">
+      <SetupBanner canvasConnected={false} whatsappConnected={false} />
       <div>
         <h1 className="text-2xl font-bold">Inicio</h1>
         <p className="mt-1 text-sm text-muted">
