@@ -6,16 +6,8 @@ import {
   TrendingUp,
   Wifi,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { SetupBanner } from "./components/setup-banner";
-import {
-  getDashboardStats,
-  getCourses,
-  getUpcomingAssignments,
-  getAnnouncements,
-  getAssignments,
-  getCourseMap,
-  isCanvasConnected,
-} from "@/lib/bot-db";
 
 function StatCard({
   icon: Icon,
@@ -52,30 +44,86 @@ function timeAgo(dateStr: string | null): string {
   if (mins < 60) return `hace ${mins} min`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `hace ${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `hace ${days}d`;
+  return `hace ${Math.floor(hours / 24)}d`;
 }
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardOverview() {
-  const canvasConnected = isCanvasConnected();
-  const stats = getDashboardStats();
-  const courses = getCourses();
-  const courseMap = getCourseMap();
-  const upcoming = getUpcomingAssignments().slice(0, 5);
-  const allAssignments = getAssignments();
-  const announcements = getAnnouncements().slice(0, 5);
+export default async function DashboardOverview() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: config } = await supabase
+    .from("canvas_configs")
+    .select("updated_at")
+    .eq("user_id", user.id)
+    .single();
+
+  const canvasConnected = !!config;
+
+  const { data: courses } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("name");
+
+  const { data: assignments } = await supabase
+    .from("assignments")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("due_at");
+
+  const { data: announcements } = await supabase
+    .from("announcements")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("posted_at", { ascending: false })
+    .limit(5);
+
+  const allCourses = courses ?? [];
+  const allAssignments = assignments ?? [];
+  const allAnnouncements = announcements ?? [];
+
+  const courseMap = new Map(allCourses.map((c) => [c.id, c.name]));
+
+  const now = new Date();
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 3600000);
+  const dayFromNow = new Date(now.getTime() + 24 * 3600000);
+
+  const upcoming = allAssignments.filter(
+    (a) => a.due_at && new Date(a.due_at) > now && new Date(a.due_at) <= weekFromNow
+  );
+  const urgent = allAssignments.filter(
+    (a) => a.due_at && new Date(a.due_at) > now && new Date(a.due_at) <= dayFromNow
+  );
+  const notSubmitted = allAssignments.filter(
+    (a) => a.submission_status !== "submitted" && a.submission_status !== "graded"
+  );
+  const scored = allAssignments.filter(
+    (a) => a.score != null && a.points_possible && a.points_possible > 0
+  );
+  const avgScore =
+    scored.length > 0
+      ? Math.round(
+          (scored.reduce((s, a) => s + (a.score! / a.points_possible!) * 100, 0) / scored.length) * 10
+        ) / 10
+      : null;
+
+  const upcomingDisplay = allAssignments
+    .filter((a) => a.due_at && new Date(a.due_at) > now)
+    .sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime())
+    .slice(0, 5);
 
   const courseAssignmentCounts = new Map<string, { total: number; pending: number }>();
   for (const a of allAssignments) {
     const entry = courseAssignmentCounts.get(a.course_id) ?? { total: 0, pending: 0 };
     entry.total++;
-    if (a.submission_status !== "submitted") entry.pending++;
+    if (a.submission_status !== "submitted" && a.submission_status !== "graded") entry.pending++;
     courseAssignmentCounts.set(a.course_id, entry);
   }
 
-  const noData = courses.length === 0;
+  const noData = allCourses.length === 0;
 
   return (
     <div className="space-y-8">
@@ -85,44 +133,41 @@ export default function DashboardOverview() {
         <p className="mt-1 text-sm text-muted">
           {noData
             ? "Conecta Canvas para ver tus clases aqui."
-            : `Tus clases de un vistazo. Ultima sincronizacion ${timeAgo(stats.lastSync)}.`}
+            : `Tus clases de un vistazo. Ultima sincronizacion ${timeAgo(config?.updated_at)}.`}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={BookOpen} label="Materias activas" value={String(stats.courses)} />
+        <StatCard icon={BookOpen} label="Materias activas" value={String(allCourses.length)} />
         <StatCard
           icon={Clock}
           label="Entregas esta semana"
-          value={String(stats.weekAssignments)}
-          sub={stats.urgentCount > 0 ? `${stats.urgentCount} urgente${stats.urgentCount > 1 ? "s" : ""}` : undefined}
+          value={String(upcoming.length)}
+          sub={urgent.length > 0 ? `${urgent.length} urgente${urgent.length > 1 ? "s" : ""}` : undefined}
         />
-        <StatCard icon={AlertTriangle} label="Sin entregar" value={String(stats.notSubmitted)} />
+        <StatCard icon={AlertTriangle} label="Sin entregar" value={String(notSubmitted.length)} />
         <StatCard
           icon={TrendingUp}
           label="Promedio"
-          value={stats.avgScore != null ? String(stats.avgScore) : "—"}
-          sub={stats.avgScore != null ? "todas las materias" : "sin calificaciones"}
+          value={avgScore != null ? String(avgScore) : "—"}
+          sub={avgScore != null ? "todas las materias" : "sin calificaciones"}
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Upcoming */}
         <div className="rounded-2xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="font-semibold">Proximas entregas</h2>
             <Clock className="h-4 w-4 text-muted" />
           </div>
           <div className="divide-y divide-border">
-            {upcoming.length === 0 && (
+            {upcomingDisplay.length === 0 && (
               <p className="px-5 py-6 text-sm text-muted">
                 {noData ? "Sin datos — conecta Canvas primero." : "No hay entregas proximas."}
               </p>
             )}
-            {upcoming.map((a) => {
-              const hoursLeft = a.due_at
-                ? (new Date(a.due_at).getTime() - Date.now()) / 3600000
-                : Infinity;
+            {upcomingDisplay.map((a) => {
+              const hoursLeft = (new Date(a.due_at!).getTime() - Date.now()) / 3600000;
               return (
                 <div key={a.id} className="flex items-start gap-3 px-5 py-4">
                   <div
@@ -134,15 +179,13 @@ export default function DashboardOverview() {
                     <p className="truncate text-sm font-medium">{a.name}</p>
                     <p className="text-xs text-muted">
                       {courseMap.get(a.course_id) ?? a.course_id} &middot;{" "}
-                      {a.due_at
-                        ? new Date(a.due_at).toLocaleDateString("es-MX", {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })
-                        : "Sin fecha"}
+                      {new Date(a.due_at!).toLocaleDateString("es-MX", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                 </div>
@@ -151,19 +194,18 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        {/* Recent announcements */}
         <div className="rounded-2xl border border-border bg-card">
           <div className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="font-semibold">Anuncios recientes</h2>
             <Bell className="h-4 w-4 text-muted" />
           </div>
           <div className="divide-y divide-border">
-            {announcements.length === 0 && (
+            {allAnnouncements.length === 0 && (
               <p className="px-5 py-6 text-sm text-muted">
                 {noData ? "Sin datos — conecta Canvas primero." : "No hay anuncios recientes."}
               </p>
             )}
-            {announcements.map((ann) => (
+            {allAnnouncements.map((ann) => (
               <div key={ann.id} className="flex items-start gap-3 px-5 py-4">
                 <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
                 <div className="min-w-0 flex-1">
@@ -179,12 +221,11 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* Courses grid */}
-      {courses.length > 0 && (
+      {allCourses.length > 0 && (
         <div>
           <h2 className="mb-4 text-lg font-semibold">Tus materias</h2>
           <div className="grid gap-4 sm:grid-cols-2">
-            {courses.map((course) => {
+            {allCourses.map((course) => {
               const counts = courseAssignmentCounts.get(course.id);
               return (
                 <div
@@ -194,18 +235,14 @@ export default function DashboardOverview() {
                   <div className="flex items-start justify-between">
                     <div>
                       <h3 className="font-semibold">{course.name}</h3>
-                      {course.code && (
-                        <p className="text-sm text-muted">{course.code}</p>
-                      )}
+                      {course.code && <p className="text-sm text-muted">{course.code}</p>}
                     </div>
                     <Wifi className="h-4 w-4 text-success" />
                   </div>
                   <div className="mt-4 flex gap-4 text-sm text-muted">
                     <span>{counts?.total ?? 0} tareas</span>
                     {(counts?.pending ?? 0) > 0 && (
-                      <span className="text-warning">
-                        {counts!.pending} pendientes
-                      </span>
+                      <span className="text-warning">{counts!.pending} pendientes</span>
                     )}
                   </div>
                 </div>

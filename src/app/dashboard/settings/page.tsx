@@ -5,229 +5,190 @@ import {
   Loader2,
   Wifi,
   WifiOff,
-  ExternalLink,
+  Key,
   RefreshCw,
-  Check,
   Database,
+  ExternalLink,
 } from "lucide-react";
 
 interface CanvasStatus {
   canvasConnected: boolean;
-  databaseReady: boolean;
+  canvasUrl: string | null;
+  lastSync: string | null;
   courseCount: number;
   hasData: boolean;
 }
 
 export default function SettingsPage() {
   const [status, setStatus] = useState<CanvasStatus | null>(null);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginStarted, setLoginStarted] = useState(false);
-  const [scrapeLoading, setScrapeLoading] = useState(false);
-  const [scrapeOutput, setScrapeOutput] = useState<string | null>(null);
-  const [loginDoneLoading, setLoginDoneLoading] = useState(false);
+  const [canvasUrl, setCanvasUrl] = useState("https://experiencia21.tec.mx");
+  const [accessToken, setAccessToken] = useState("");
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncOutput, setSyncOutput] = useState<string | null>(null);
 
   async function fetchStatus() {
     try {
       const res = await fetch("/api/canvas/status");
       const data = await res.json();
       setStatus(data);
-    } catch {
-      // server might not be ready
-    }
+      if (data.canvasUrl) setCanvasUrl(data.canvasUrl);
+    } catch {}
   }
 
-  useEffect(() => {
-    fetchStatus();
-  }, []);
+  useEffect(() => { fetchStatus(); }, []);
 
-  async function handleCanvasLogin() {
-    setLoginLoading(true);
-    setLoginStarted(false);
+  async function handleConnect() {
+    if (!accessToken.trim()) { setConnectError("Pega tu token."); return; }
+    setConnectLoading(true);
+    setConnectError(null);
     try {
-      const res = await fetch("/api/canvas/login", { method: "POST" });
+      const res = await fetch("/api/canvas/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ canvasUrl: canvasUrl.trim(), accessToken: accessToken.trim() }),
+      });
       const data = await res.json();
-      if (data.status === "started" || data.status === "already_running") {
-        setLoginStarted(true);
+      if (!res.ok) { setConnectError(data.error); return; }
+
+      setSyncLoading(true);
+      setSyncOutput("Sincronizando...");
+      const syncRes = await fetch("/api/canvas/sync", { method: "POST" });
+      const syncData = await syncRes.json();
+      if (syncData.ok) {
+        setSyncOutput(`Listo: ${syncData.courses} materias, ${syncData.assignments} tareas, ${syncData.announcements} anuncios.`);
+      } else {
+        setSyncOutput(syncData.error || "Error al sincronizar.");
       }
-    } catch {
-      // error
-    } finally {
-      setLoginLoading(false);
-    }
-  }
-
-  async function handleLoginDone() {
-    setLoginDoneLoading(true);
-    try {
-      await fetch("/api/canvas/login-done", { method: "POST" });
       await fetchStatus();
-      setLoginStarted(false);
+      setAccessToken("");
     } catch {
-      // error
+      setConnectError("Error de conexion.");
     } finally {
-      setLoginDoneLoading(false);
+      setConnectLoading(false);
+      setSyncLoading(false);
     }
   }
 
-  async function handleScrape() {
-    setScrapeLoading(true);
-    setScrapeOutput(null);
+  async function handleSync() {
+    setSyncLoading(true);
+    setSyncOutput("Sincronizando...");
     try {
-      const res = await fetch("/api/canvas/scrape", { method: "POST" });
+      const res = await fetch("/api/canvas/sync", { method: "POST" });
       const data = await res.json();
-      setScrapeOutput(data.output || "Scrape completado.");
+      if (data.ok) {
+        setSyncOutput(`Listo: ${data.courses} materias, ${data.assignments} tareas, ${data.announcements} anuncios.`);
+      } else {
+        setSyncOutput(data.error || "Error.");
+      }
       await fetchStatus();
     } catch {
-      setScrapeOutput("Error al hacer scrape.");
+      setSyncOutput("Error de conexion.");
     } finally {
-      setScrapeLoading(false);
+      setSyncLoading(false);
     }
+  }
+
+  function timeAgo(dateStr: string | null) {
+    if (!dateStr) return "nunca";
+    const mins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+    if (mins < 1) return "justo ahora";
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours}h`;
+    return `hace ${Math.floor(hours / 24)}d`;
   }
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Ajustes</h1>
-        <p className="mt-1 text-sm text-muted">
-          Configura tu conexion con Canvas y controla el bot.
-        </p>
+        <p className="mt-1 text-sm text-muted">Configura tu conexion con Canvas.</p>
       </div>
 
-      {/* Canvas connection */}
+      {/* Connection status */}
       <div className="rounded-2xl border border-border bg-card p-6">
         <h2 className="font-semibold">Conexion con Canvas</h2>
         <p className="mt-1 text-sm text-muted">
-          Inicia sesion en Canvas para que el bot pueda leer tus materias.
+          Usa un token de acceso personal de Canvas para conectar.
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-4">
-          <div
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium ${
-              status?.canvasConnected
-                ? "bg-success/10 text-success"
-                : "bg-card-hover text-muted"
-            }`}
-          >
-            {status?.canvasConnected ? (
-              <Wifi className="h-4 w-4" />
-            ) : (
-              <WifiOff className="h-4 w-4" />
-            )}
-            {status?.canvasConnected ? "Sesion guardada" : "No conectado"}
+          <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium ${
+            status?.canvasConnected ? "bg-success/10 text-success" : "bg-card-hover text-muted"
+          }`}>
+            {status?.canvasConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+            {status?.canvasConnected ? "Conectado" : "No conectado"}
           </div>
-
           {status?.hasData && (
             <div className="flex items-center gap-2 rounded-xl bg-accent/10 px-4 py-2.5 text-sm font-medium text-accent">
               <Database className="h-4 w-4" />
-              {status.courseCount} materias en la base de datos
+              {status.courseCount} materias &middot; sincronizado {timeAgo(status.lastSync)}
             </div>
           )}
         </div>
 
-        <div className="mt-4 space-y-3">
-          {!loginStarted ? (
+        <div className="mt-5 space-y-3">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">URL de Canvas</label>
+            <input
+              type="url"
+              value={canvasUrl}
+              onChange={(e) => setCanvasUrl(e.target.value)}
+              className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none transition-colors focus:border-accent"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">
+              Token de acceso{" "}
+              <a
+                href={`${canvasUrl}/profile/settings`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-normal text-accent hover:underline"
+              >
+                (generar en Canvas <ExternalLink className="h-3 w-3" />)
+              </a>
+            </label>
+            <input
+              type="password"
+              value={accessToken}
+              onChange={(e) => setAccessToken(e.target.value)}
+              placeholder={status?.canvasConnected ? "Pega un nuevo token para reconectar" : "Pega tu token aqui..."}
+              className="h-11 w-full rounded-xl border border-border bg-background px-4 font-mono text-sm outline-none transition-colors placeholder:font-sans placeholder:text-muted/50 focus:border-accent"
+            />
+          </div>
+
+          {connectError && (
+            <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{connectError}</p>
+          )}
+
+          <div className="flex gap-3">
             <button
-              onClick={handleCanvasLogin}
-              disabled={loginLoading}
+              onClick={handleConnect}
+              disabled={connectLoading || syncLoading || !accessToken.trim()}
               className="flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
             >
-              {loginLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ExternalLink className="h-4 w-4" />
-              )}
-              {status?.canvasConnected ? "Reconectar Canvas" : "Conectar Canvas"}
+              {connectLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Key className="h-4 w-4" />}
+              {status?.canvasConnected ? "Reconectar" : "Conectar"}
             </button>
-          ) : (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
-                <p className="text-sm">
-                  Se abrio una ventana de navegador. Inicia sesion en Canvas y cuando veas tu dashboard, haz click en el boton de abajo.
-                </p>
-              </div>
+
+            {status?.canvasConnected && (
               <button
-                onClick={handleLoginDone}
-                disabled={loginDoneLoading}
-                className="flex h-11 items-center gap-2 rounded-xl bg-success px-5 text-sm font-medium text-white transition-colors hover:opacity-90 disabled:opacity-50"
+                onClick={handleSync}
+                disabled={syncLoading}
+                className="flex h-11 items-center gap-2 rounded-xl border border-border px-5 text-sm font-medium transition-colors hover:bg-card-hover disabled:opacity-50"
               >
-                {loginDoneLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="h-4 w-4" />
-                )}
-                Ya inicie sesion
+                {syncLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Sincronizar ahora
               </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Scrape controls */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Sincronizar datos de Canvas</h2>
-        <p className="mt-1 text-sm text-muted">
-          Ejecuta un scrape para traer los datos mas recientes de tus materias, tareas y anuncios.
-        </p>
-
-        <div className="mt-4 space-y-3">
-          <button
-            onClick={handleScrape}
-            disabled={scrapeLoading}
-            className="flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-          >
-            {scrapeLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
             )}
-            {scrapeLoading ? "Scrapeando Canvas..." : "Scrape rapido"}
-          </button>
+          </div>
 
-          {scrapeOutput && (
-            <pre className="max-h-48 overflow-auto rounded-xl bg-background p-4 text-xs text-muted">
-              {scrapeOutput}
-            </pre>
+          {syncOutput && (
+            <p className="rounded-lg bg-accent/5 px-3 py-2 text-sm text-accent">{syncOutput}</p>
           )}
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Comandos del bot (terminal)</h2>
-        <p className="mt-1 text-sm text-muted">
-          Tambien puedes usar estos comandos desde la terminal en la carpeta del proyecto:
-        </p>
-        <div className="mt-4 space-y-2 text-sm text-muted">
-          <div className="flex gap-3">
-            <code className="shrink-0 rounded bg-background px-2 py-1 text-xs font-mono text-accent">
-              npm run canvas:scrape
-            </code>
-            <span>Scrape rapido (listas)</span>
-          </div>
-          <div className="flex gap-3">
-            <code className="shrink-0 rounded bg-background px-2 py-1 text-xs font-mono text-accent">
-              npm run canvas:crawl
-            </code>
-            <span>Crawl profundo (todo el contenido)</span>
-          </div>
-          <div className="flex gap-3">
-            <code className="shrink-0 rounded bg-background px-2 py-1 text-xs font-mono text-accent">
-              npm run scheduler
-            </code>
-            <span>Scheduler continuo (actualiza cada 30 min)</span>
-          </div>
-          <div className="flex gap-3">
-            <code className="shrink-0 rounded bg-background px-2 py-1 text-xs font-mono text-accent">
-              npm run whatsapp
-            </code>
-            <span>Iniciar bot de WhatsApp</span>
-          </div>
-          <div className="flex gap-3">
-            <code className="shrink-0 rounded bg-background px-2 py-1 text-xs font-mono text-accent">
-              npm run chat
-            </code>
-            <span>Chat con IA en terminal</span>
-          </div>
         </div>
       </div>
     </div>
