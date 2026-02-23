@@ -28,12 +28,11 @@ export default function SignupPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
         data: { full_name: name.trim(), onboarding_step: 0 },
-        emailRedirectTo: undefined,
       },
     });
 
@@ -43,13 +42,21 @@ export default function SignupPage() {
       return;
     }
 
+    // If Supabase returned a session (email confirmation is off), we're done
+    if (signUpData.session) {
+      router.push("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    // Otherwise try signing in directly (works when confirmation is disabled)
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
     if (signInError) {
-      setError(signInError.message);
+      setError("No se pudo iniciar sesion. Revisa que la confirmacion de correo este desactivada en Supabase.");
       setLoading(false);
       return;
     }
