@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   MonitorSmartphone,
   MessageSquare,
@@ -10,11 +10,13 @@ import {
   Check,
   SkipForward,
   X,
-  Terminal,
-  RefreshCw,
   Loader2,
-  Copy,
+  Eye,
+  EyeOff,
+  Lock,
+  AlertCircle,
 } from "lucide-react";
+import { createBrowserClient } from "@supabase/ssr";
 
 interface OnboardingProps {
   userName: string;
@@ -22,6 +24,7 @@ interface OnboardingProps {
 }
 
 const TOTAL_STEPS = 3;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://canvasbot-api.fly.dev";
 
 export function Onboarding({ userName, onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
@@ -29,8 +32,20 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
   const [courseCount, setCourseCount] = useState(0);
   const [skipWhatsapp, setSkipWhatsapp] = useState(false);
   const [autoHomework, setAutoHomework] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [copied, setCopied] = useState(false);
+
+  // Canvas login form
+  const [canvasEmail, setCanvasEmail] = useState("");
+  const [canvasPassword, setCanvasPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [canvasUrl] = useState("https://experiencia21.tec.mx");
+
+  // Job tracking
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [jobMessage, setJobMessage] = useState("");
+  const [jobError, setJobError] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const steps = [
     { icon: MonitorSmartphone, label: "Canvas" },
@@ -39,7 +54,6 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
   ];
 
   async function checkStatus() {
-    setChecking(true);
     try {
       const res = await fetch("/api/canvas/status");
       const data = await res.json();
@@ -48,15 +62,101 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
         setCourseCount(data.courseCount);
       }
     } catch {}
-    setChecking(false);
   }
 
-  useEffect(() => { checkStatus(); }, []);
+  useEffect(() => {
+    checkStatus();
+  }, []);
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // Poll job status
+  useEffect(() => {
+    if (!jobId) return;
+
+    async function poll() {
+      try {
+        const res = await fetch(`${API_URL}/api/job/${jobId}`);
+        const data = await res.json();
+        setJobStatus(data.status);
+        setJobMessage(data.message);
+
+        if (data.status === "done") {
+          setConnecting(false);
+          setCanvasConnected(true);
+          setCourseCount(data.result?.courses || 0);
+          if (pollRef.current) clearInterval(pollRef.current);
+        } else if (data.status === "error") {
+          setConnecting(false);
+          setJobError(data.message);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      } catch {
+        // Network error, keep polling
+      }
+    }
+
+    pollRef.current = setInterval(poll, 2000);
+    poll();
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [jobId]);
+
+  async function handleConnect() {
+    if (!canvasEmail || !canvasPassword) {
+      setJobError("Ingresa tu correo y contrasena.");
+      return;
+    }
+
+    setConnecting(true);
+    setJobError("");
+    setJobMessage("Enviando...");
+
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setJobError("Sesion expirada. Recarga la pagina.");
+        setConnecting(false);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/connect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: canvasEmail,
+          password: canvasPassword,
+          canvasUrl,
+          userId: user.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        setJobError(data.error);
+        setConnecting(false);
+        return;
+      }
+
+      setJobId(data.jobId);
+      setJobStatus("pending");
+      setJobMessage("En cola...");
+    } catch (e: any) {
+      setJobError("No se pudo conectar al servidor. Intenta de nuevo.");
+      setConnecting(false);
+    }
+  }
+
+  function getStatusIcon() {
+    if (jobStatus === "login") return <Loader2 className="h-4 w-4 animate-spin text-accent" />;
+    if (jobStatus === "scraping") return <Loader2 className="h-4 w-4 animate-spin text-accent" />;
+    if (jobStatus === "done") return <Check className="h-4 w-4 text-success" />;
+    if (jobStatus === "error") return <AlertCircle className="h-4 w-4 text-red-500" />;
+    return <Loader2 className="h-4 w-4 animate-spin text-muted" />;
   }
 
   return (
@@ -95,7 +195,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
         </div>
 
         <div className="max-h-[65vh] overflow-y-auto px-6 py-6">
-          {/* Step 1: Canvas setup */}
+          {/* Step 1: Canvas login */}
           {step === 0 && (
             <div className="space-y-5">
               <div>
@@ -104,7 +204,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 </div>
                 <h2 className="mt-3 text-xl font-bold">Conecta tu Canvas</h2>
                 <p className="mt-1 text-sm text-muted">
-                  CanvasBot navega tu Canvas como si fueras tu, sin usar APIs bloqueadas. Corre un programa en tu computadora que lee todo y lo sube aqui.
+                  Ingresa tus credenciales del Tec. Nuestro servidor abre Canvas, lee todas tus materias, tareas y anuncios, y los trae aqui.
                 </p>
               </div>
 
@@ -118,62 +218,90 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 </div>
               ) : (
                 <>
-                  <div className="rounded-xl bg-background p-4">
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
-                      En tu terminal, corre estos comandos
-                    </p>
-                    <ol className="space-y-3 text-sm">
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">1</span>
-                        <div className="min-w-0 flex-1">
-                          <p>Clona el proyecto (solo la primera vez)</p>
-                          <button onClick={() => copyToClipboard("git clone https://github.com/321david123/canvasbot-web.git canvasbot && cd canvasbot && npm install")} className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-card px-3 py-2 text-left font-mono text-xs text-accent hover:bg-card-hover">
-                            <Terminal className="h-3 w-3 shrink-0" />
-                            <span className="truncate">git clone ... && npm install</span>
-                            <Copy className="ml-auto h-3 w-3 shrink-0 text-muted" />
-                          </button>
-                        </div>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">2</span>
-                        <div className="min-w-0 flex-1">
-                          <p>Configura tu .env con tus datos de Supabase</p>
-                          <p className="mt-1 text-xs text-muted">Copia .env.example a .env y llena SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_EMAIL (tu correo tec), SUPABASE_PASSWORD</p>
-                        </div>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">3</span>
-                        <div className="min-w-0 flex-1">
-                          <p>Inicia sesion en Canvas (se abre un navegador)</p>
-                          <button onClick={() => copyToClipboard("npm run canvas:login")} className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-card px-3 py-2 text-left font-mono text-xs text-accent hover:bg-card-hover">
-                            <Terminal className="h-3 w-3 shrink-0" />
-                            npm run canvas:login
-                            <Copy className="ml-auto h-3 w-3 shrink-0 text-muted" />
-                          </button>
-                        </div>
-                      </li>
-                      <li className="flex gap-3">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">4</span>
-                        <div className="min-w-0 flex-1">
-                          <p>Escanea Canvas y sincroniza al dashboard</p>
-                          <button onClick={() => copyToClipboard("npm run canvas:scrape && npm run sync")} className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-card px-3 py-2 text-left font-mono text-xs text-accent hover:bg-card-hover">
-                            <Terminal className="h-3 w-3 shrink-0" />
-                            npm run canvas:scrape && npm run sync
-                            <Copy className="ml-auto h-3 w-3 shrink-0 text-muted" />
-                          </button>
-                        </div>
-                      </li>
-                    </ol>
-                    {copied && <p className="mt-2 text-center text-xs text-success">Copiado!</p>}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-muted">Correo del Tec</label>
+                      <input
+                        type="email"
+                        value={canvasEmail}
+                        onChange={(e) => setCanvasEmail(e.target.value)}
+                        placeholder="A01234567@tec.mx"
+                        disabled={connecting}
+                        className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent disabled:opacity-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-muted">Contrasena del Tec / Microsoft</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={canvasPassword}
+                          onChange={(e) => setCanvasPassword(e.target.value)}
+                          placeholder="Tu contrasena institucional"
+                          disabled={connecting}
+                          className="h-11 w-full rounded-xl border border-border bg-background px-4 pr-10 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent disabled:opacity-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
+                  <div className="flex items-start gap-2 rounded-xl bg-background px-3 py-2.5">
+                    <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted" />
+                    <p className="text-xs text-muted">
+                      Tus credenciales se usan solo para iniciar sesion en Canvas una vez. No las almacenamos. Si Microsoft pide 2FA, aprueba en tu celular.
+                    </p>
+                  </div>
+
+                  {/* Job progress */}
+                  {connecting && (
+                    <div className="space-y-2 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon()}
+                        <span className="text-sm font-medium">
+                          {jobStatus === "login" && "Iniciando sesion..."}
+                          {jobStatus === "scraping" && "Leyendo Canvas..."}
+                          {jobStatus === "pending" && "En cola..."}
+                          {!jobStatus && "Conectando..."}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted">{jobMessage}</p>
+                      {jobStatus === "login" && (
+                        <p className="text-xs text-accent">Si Microsoft pide aprobacion en tu telefono, apruebala ahora.</p>
+                      )}
+                    </div>
+                  )}
+
+                  {jobError && (
+                    <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                      <p className="text-sm text-red-400">{jobError}</p>
+                    </div>
+                  )}
+
                   <button
-                    onClick={checkStatus}
-                    disabled={checking}
+                    onClick={handleConnect}
+                    disabled={connecting || !canvasEmail || !canvasPassword}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                   >
-                    {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    Ya lo hice — verificar conexion
+                    {connecting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Conectando...
+                      </>
+                    ) : (
+                      <>
+                        <MonitorSmartphone className="h-4 w-4" />
+                        Conectar Canvas
+                      </>
+                    )}
                   </button>
                 </>
               )}
@@ -189,7 +317,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 </div>
                 <h2 className="mt-3 text-xl font-bold">Conecta WhatsApp</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Recibe alertas y habla con la IA desde tu celular.
+                  Recibe alertas de tareas y platica con la IA desde tu celular.
                 </p>
               </div>
 
@@ -198,7 +326,12 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                   <div className="rounded-xl bg-background p-4">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Lo que recibes</p>
                     <ul className="space-y-2.5 text-sm">
-                      {["Resumen cada manana con tus pendientes", "Alerta al instante si suben tarea o calificacion", "Recordatorio antes de cada entrega", "Chat con IA sobre tus clases"].map((text) => (
+                      {[
+                        "Resumen cada manana con tus pendientes",
+                        "Alerta al instante si suben tarea o calificacion",
+                        "Recordatorio antes de cada entrega",
+                        "Chat con IA sobre tus clases",
+                      ].map((text) => (
                         <li key={text} className="flex gap-2.5">
                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
                           <span className="text-muted">{text}</span>
@@ -207,12 +340,10 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                     </ul>
                   </div>
 
-                  <div className="rounded-xl bg-background p-4">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Como activarlo</p>
-                    <p className="text-sm text-muted">
-                      En tu terminal corre{" "}
-                      <code className="rounded bg-card px-1.5 py-0.5 text-xs text-accent">npm run whatsapp</code>{" "}
-                      — aparece un QR que escaneas desde WhatsApp &rarr; Dispositivos vinculados.
+                  <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
+                    <p className="text-sm font-medium text-accent">Proximamente</p>
+                    <p className="mt-1 text-xs text-muted">
+                      La conexion de WhatsApp estara disponible pronto. Por ahora puedes usar el chat de IA desde el dashboard.
                     </p>
                   </div>
 
@@ -256,19 +387,10 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
               </div>
 
               <div className="rounded-xl bg-background p-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Para mantener datos frescos</p>
-                <p className="text-sm text-muted">
-                  Corre{" "}
-                  <code className="rounded bg-card px-1.5 py-0.5 text-xs text-accent">npm run scheduler</code>{" "}
-                  en tu computadora. Escanea Canvas cada 30 min y sincroniza automaticamente.
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-background p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Tu configuracion</p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
-                    {canvasConnected ? <Check className="h-4 w-4 text-success" /> : <X className="h-4 w-4 text-danger" />}
+                    {canvasConnected ? <Check className="h-4 w-4 text-success" /> : <X className="h-4 w-4 text-red-500" />}
                     <span className={canvasConnected ? "" : "text-muted"}>Canvas {canvasConnected ? `conectado (${courseCount} materias)` : "— pendiente"}</span>
                   </li>
                   <li className="flex items-center gap-2">

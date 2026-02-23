@@ -55,11 +55,24 @@ alter table courses enable row level security;
 alter table assignments enable row level security;
 alter table announcements enable row level security;
 
--- RLS policies: users can only see/modify their own data
-create policy "Users manage own canvas_configs" on canvas_configs for all using (auth.uid() = user_id);
-create policy "Users manage own courses" on courses for all using (auth.uid() = user_id);
-create policy "Users manage own assignments" on assignments for all using (auth.uid() = user_id);
-create policy "Users manage own announcements" on announcements for all using (auth.uid() = user_id);
+-- RLS policies: users can read their own data via anon key
+create policy "Users read own canvas_configs" on canvas_configs for select using (auth.uid() = user_id);
+create policy "Users read own courses" on courses for select using (auth.uid() = user_id);
+create policy "Users read own assignments" on assignments for select using (auth.uid() = user_id);
+create policy "Users read own announcements" on announcements for select using (auth.uid() = user_id);
+
+-- RLS policies: users can insert/update their own data via anon key
+create policy "Users write own canvas_configs" on canvas_configs for insert with check (auth.uid() = user_id);
+create policy "Users update own canvas_configs" on canvas_configs for update using (auth.uid() = user_id);
+create policy "Users write own courses" on courses for insert with check (auth.uid() = user_id);
+create policy "Users update own courses" on courses for update using (auth.uid() = user_id);
+create policy "Users write own assignments" on assignments for insert with check (auth.uid() = user_id);
+create policy "Users update own assignments" on assignments for update using (auth.uid() = user_id);
+create policy "Users write own announcements" on announcements for insert with check (auth.uid() = user_id);
+create policy "Users update own announcements" on announcements for update using (auth.uid() = user_id);
+
+-- Service-role can do anything (used by the fly.io backend server)
+-- Note: service_role key bypasses RLS by default in Supabase, so no extra policies needed.
 
 -- Indexes
 create index if not exists idx_assignments_user_course on assignments(user_id, course_id);
