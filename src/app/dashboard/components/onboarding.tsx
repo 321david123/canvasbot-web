@@ -8,11 +8,12 @@ import {
   ChevronRight,
   ChevronLeft,
   Check,
-  Key,
   SkipForward,
   X,
+  Terminal,
+  RefreshCw,
   Loader2,
-  ExternalLink,
+  Copy,
 } from "lucide-react";
 
 interface OnboardingProps {
@@ -24,15 +25,12 @@ const TOTAL_STEPS = 3;
 
 export function Onboarding({ userName, onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
-  const [canvasUrl, setCanvasUrl] = useState("https://experiencia21.tec.mx");
-  const [accessToken, setAccessToken] = useState("");
   const [canvasConnected, setCanvasConnected] = useState(false);
-  const [canvasLoading, setCanvasLoading] = useState(false);
-  const [canvasError, setCanvasError] = useState<string | null>(null);
-  const [syncLoading, setSyncLoading] = useState(false);
-  const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [courseCount, setCourseCount] = useState(0);
   const [skipWhatsapp, setSkipWhatsapp] = useState(false);
   const [autoHomework, setAutoHomework] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const steps = [
     { icon: MonitorSmartphone, label: "Canvas" },
@@ -40,57 +38,25 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
     { icon: Settings2, label: "Listo" },
   ];
 
-  useEffect(() => {
-    fetch("/api/canvas/status")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.canvasConnected && data.hasData) {
-          setCanvasConnected(true);
-          setSyncResult(`${data.courseCount} materias conectadas.`);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  async function handleConnect() {
-    if (!accessToken.trim()) {
-      setCanvasError("Pega tu token de Canvas.");
-      return;
-    }
-    setCanvasLoading(true);
-    setCanvasError(null);
-
+  async function checkStatus() {
+    setChecking(true);
     try {
-      const res = await fetch("/api/canvas/connect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canvasUrl: canvasUrl.trim(), accessToken: accessToken.trim() }),
-      });
+      const res = await fetch("/api/canvas/status");
       const data = await res.json();
-
-      if (!res.ok) {
-        setCanvasError(data.error || "Error al conectar.");
-        setCanvasLoading(false);
-        return;
-      }
-
-      // Now sync data
-      setSyncLoading(true);
-      const syncRes = await fetch("/api/canvas/sync", { method: "POST" });
-      const syncData = await syncRes.json();
-
-      if (syncData.ok) {
+      if (data.hasData) {
         setCanvasConnected(true);
-        setSyncResult(`${syncData.courses} materias, ${syncData.assignments} tareas, ${syncData.announcements} anuncios.`);
-      } else {
-        setCanvasError(syncData.error || "Error al sincronizar.");
+        setCourseCount(data.courseCount);
       }
-    } catch {
-      setCanvasError("Error de conexion.");
-    } finally {
-      setCanvasLoading(false);
-      setSyncLoading(false);
-    }
+    } catch {}
+    setChecking(false);
+  }
+
+  useEffect(() => { checkStatus(); }, []);
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -108,9 +74,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
           {steps.map((_, i) => (
             <div
               key={i}
-              className={`h-full flex-1 transition-colors duration-300 ${
-                i <= step ? "bg-accent" : "bg-transparent"
-              } ${i > 0 ? "ml-px" : ""}`}
+              className={`h-full flex-1 transition-colors duration-300 ${i <= step ? "bg-accent" : "bg-transparent"} ${i > 0 ? "ml-px" : ""}`}
             />
           ))}
         </div>
@@ -120,12 +84,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
             {steps.map((s, i) => {
               const Icon = s.icon;
               return (
-                <div
-                  key={i}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                    i < step ? "bg-success/15 text-success" : i === step ? "bg-accent/15 text-accent" : "text-muted"
-                  }`}
-                >
+                <div key={i} className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${i < step ? "bg-success/15 text-success" : i === step ? "bg-accent/15 text-accent" : "text-muted"}`}>
                   {i < step ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
                   {s.label}
                 </div>
@@ -136,7 +95,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
         </div>
 
         <div className="max-h-[65vh] overflow-y-auto px-6 py-6">
-          {/* Step 1: Canvas token */}
+          {/* Step 1: Canvas setup */}
           {step === 0 && (
             <div className="space-y-5">
               <div>
@@ -145,7 +104,7 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 </div>
                 <h2 className="mt-3 text-xl font-bold">Conecta tu Canvas</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Necesitamos un token de acceso para leer tus materias. Es seguro — tu lo generas y lo puedes revocar cuando quieras.
+                  CanvasBot navega tu Canvas como si fueras tu, sin usar APIs bloqueadas. Corre un programa en tu computadora que lee todo y lo sube aqui.
                 </p>
               </div>
 
@@ -154,88 +113,67 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                   <Check className="h-5 w-5 text-success" />
                   <div>
                     <p className="text-sm font-semibold text-success">Canvas conectado</p>
-                    <p className="text-xs text-muted">{syncResult}</p>
+                    <p className="text-xs text-muted">{courseCount} materias sincronizadas.</p>
                   </div>
                 </div>
               ) : (
                 <>
                   <div className="rounded-xl bg-background p-4">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
-                      Como generar tu token (30 segundos)
+                      En tu terminal, corre estos comandos
                     </p>
                     <ol className="space-y-3 text-sm">
                       <li className="flex gap-3">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">1</span>
-                        <span>
-                          Abre{" "}
-                          <a
-                            href={`${canvasUrl}/profile/settings`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-accent hover:underline"
-                          >
-                            Canvas &rarr; Configuracion
-                            <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p>Clona el proyecto (solo la primera vez)</p>
+                          <button onClick={() => copyToClipboard("git clone https://github.com/321david123/canvasbot-web.git canvasbot && cd canvasbot && npm install")} className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-card px-3 py-2 text-left font-mono text-xs text-accent hover:bg-card-hover">
+                            <Terminal className="h-3 w-3 shrink-0" />
+                            <span className="truncate">git clone ... && npm install</span>
+                            <Copy className="ml-auto h-3 w-3 shrink-0 text-muted" />
+                          </button>
+                        </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">2</span>
-                        <span>Baja hasta &ldquo;Approved Integrations&rdquo; o &ldquo;Integraciones aprobadas&rdquo;</span>
+                        <div className="min-w-0 flex-1">
+                          <p>Configura tu .env con tus datos de Supabase</p>
+                          <p className="mt-1 text-xs text-muted">Copia .env.example a .env y llena SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_EMAIL (tu correo tec), SUPABASE_PASSWORD</p>
+                        </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">3</span>
-                        <span>Click en &ldquo;+ New Access Token&rdquo;, pon cualquier nombre, y click en &ldquo;Generate Token&rdquo;</span>
+                        <div className="min-w-0 flex-1">
+                          <p>Inicia sesion en Canvas (se abre un navegador)</p>
+                          <button onClick={() => copyToClipboard("npm run canvas:login")} className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-card px-3 py-2 text-left font-mono text-xs text-accent hover:bg-card-hover">
+                            <Terminal className="h-3 w-3 shrink-0" />
+                            npm run canvas:login
+                            <Copy className="ml-auto h-3 w-3 shrink-0 text-muted" />
+                          </button>
+                        </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">4</span>
-                        <span>Copia el token y pegalo aqui abajo</span>
+                        <div className="min-w-0 flex-1">
+                          <p>Escanea Canvas y sincroniza al dashboard</p>
+                          <button onClick={() => copyToClipboard("npm run canvas:scrape && npm run sync")} className="mt-1.5 flex w-full items-center gap-2 rounded-lg bg-card px-3 py-2 text-left font-mono text-xs text-accent hover:bg-card-hover">
+                            <Terminal className="h-3 w-3 shrink-0" />
+                            npm run canvas:scrape && npm run sync
+                            <Copy className="ml-auto h-3 w-3 shrink-0 text-muted" />
+                          </button>
+                        </div>
                       </li>
                     </ol>
+                    {copied && <p className="mt-2 text-center text-xs text-success">Copiado!</p>}
                   </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium">URL de Canvas</label>
-                      <input
-                        type="url"
-                        value={canvasUrl}
-                        onChange={(e) => setCanvasUrl(e.target.value)}
-                        className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-medium">Token de acceso</label>
-                      <input
-                        type="password"
-                        value={accessToken}
-                        onChange={(e) => setAccessToken(e.target.value)}
-                        placeholder="Pega tu token aqui..."
-                        className="h-11 w-full rounded-xl border border-border bg-background px-4 font-mono text-sm outline-none transition-colors placeholder:text-muted/50 focus:border-accent"
-                      />
-                    </div>
-                  </div>
-
-                  {canvasError && (
-                    <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{canvasError}</p>
-                  )}
 
                   <button
-                    onClick={handleConnect}
-                    disabled={canvasLoading || syncLoading || !accessToken.trim()}
+                    onClick={checkStatus}
+                    disabled={checking}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                   >
-                    {canvasLoading || syncLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        {syncLoading ? "Leyendo materias..." : "Verificando token..."}
-                      </>
-                    ) : (
-                      <>
-                        <Key className="h-4 w-4" />
-                        Conectar Canvas
-                      </>
-                    )}
+                    {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Ya lo hice — verificar conexion
                   </button>
                 </>
               )}
@@ -249,98 +187,93 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 <div className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent">
                   Paso 2 — Recomendado
                 </div>
-                <h2 className="mt-3 text-xl font-bold">WhatsApp (proximamente)</h2>
+                <h2 className="mt-3 text-xl font-bold">Conecta WhatsApp</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Pronto podras recibir alertas, recordatorios y preguntar desde WhatsApp. Por ahora, usa el chat en el dashboard.
+                  Recibe alertas y habla con la IA desde tu celular.
                 </p>
               </div>
 
-              <div className="rounded-xl bg-background p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
-                  Lo que viene
-                </p>
-                <ul className="space-y-2.5 text-sm">
-                  {[
-                    "Resumen cada manana con tus pendientes",
-                    "Alerta al instante si suben tarea o calificacion",
-                    "Recordatorio antes de cada entrega",
-                    "Chat directo con IA sobre tus clases",
-                  ].map((text) => (
-                    <li key={text} className="flex gap-2.5">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                      <span className="text-muted">{text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {!skipWhatsapp ? (
+                <>
+                  <div className="rounded-xl bg-background p-4">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Lo que recibes</p>
+                    <ul className="space-y-2.5 text-sm">
+                      {["Resumen cada manana con tus pendientes", "Alerta al instante si suben tarea o calificacion", "Recordatorio antes de cada entrega", "Chat con IA sobre tus clases"].map((text) => (
+                        <li key={text} className="flex gap-2.5">
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                          <span className="text-muted">{text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-              <p className="text-center text-sm text-muted">
-                Por ahora, puedes usar el <strong>Chat IA</strong> en el dashboard para preguntar lo que sea sobre tus clases.
-              </p>
+                  <div className="rounded-xl bg-background p-4">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Como activarlo</p>
+                    <p className="text-sm text-muted">
+                      En tu terminal corre{" "}
+                      <code className="rounded bg-card px-1.5 py-0.5 text-xs text-accent">npm run whatsapp</code>{" "}
+                      — aparece un QR que escaneas desde WhatsApp &rarr; Dispositivos vinculados.
+                    </p>
+                  </div>
+
+                  <button onClick={() => setSkipWhatsapp(true)} className="flex w-full items-center justify-center gap-1.5 pt-1 text-xs text-muted transition-colors hover:text-foreground">
+                    <SkipForward className="h-3 w-3" />
+                    Saltar — solo usar el dashboard
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-warning/20 bg-warning/5 px-4 py-3">
+                    <p className="text-sm text-warning">Sin WhatsApp solo podras usar el dashboard web.</p>
+                  </div>
+                  <button onClick={() => setSkipWhatsapp(false)} className="text-sm text-accent hover:text-accent-hover">&larr; Mejor si quiero WhatsApp</button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Step 3: Preferences */}
+          {/* Step 3: Done */}
           {step === 2 && (
             <div className="space-y-5">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-success">
                   Paso 3 — Ultimo
                 </div>
-                <h2 className="mt-3 text-xl font-bold">Personaliza tu bot</h2>
-                <p className="mt-1 text-sm text-muted">
-                  Puedes cambiar todo despues en Ajustes.
-                </p>
+                <h2 className="mt-3 text-xl font-bold">Listo!</h2>
+                <p className="mt-1 text-sm text-muted">Tu bot esta configurado.</p>
               </div>
 
               <div className="rounded-xl bg-background p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-sm font-semibold">Tarea automatica con IA</p>
-                    <p className="mt-0.5 text-xs text-muted">
-                      El bot intenta resolver quizzes y ejercicios. Tu siempre apruebas antes de que se envie.
-                    </p>
+                    <p className="mt-0.5 text-xs text-muted">El bot intenta resolver ejercicios. Tu apruebas antes de enviar.</p>
                   </div>
-                  <button
-                    onClick={() => setAutoHomework(!autoHomework)}
-                    className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${
-                      autoHomework ? "bg-accent" : "bg-border"
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        autoHomework ? "translate-x-5" : "translate-x-0.5"
-                      }`}
-                    />
+                  <button onClick={() => setAutoHomework(!autoHomework)} className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${autoHomework ? "bg-accent" : "bg-border"}`}>
+                    <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${autoHomework ? "translate-x-5" : "translate-x-0.5"}`} />
                   </button>
                 </div>
-                {autoHomework && (
-                  <p className="mt-3 rounded-lg bg-warning/5 px-3 py-2 text-xs text-warning ring-1 ring-warning/20">
-                    Nunca se envia nada sin tu aprobacion.
-                  </p>
-                )}
               </div>
 
               <div className="rounded-xl bg-background p-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
-                  Tu configuracion
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Para mantener datos frescos</p>
+                <p className="text-sm text-muted">
+                  Corre{" "}
+                  <code className="rounded bg-card px-1.5 py-0.5 text-xs text-accent">npm run scheduler</code>{" "}
+                  en tu computadora. Escanea Canvas cada 30 min y sincroniza automaticamente.
                 </p>
+              </div>
+
+              <div className="rounded-xl bg-background p-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">Tu configuracion</p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
-                    {canvasConnected ? (
-                      <Check className="h-4 w-4 text-success" />
-                    ) : (
-                      <X className="h-4 w-4 text-danger" />
-                    )}
-                    <span className={canvasConnected ? "" : "text-muted"}>
-                      Canvas {canvasConnected ? "conectado" : "— no conectado"}
-                    </span>
+                    {canvasConnected ? <Check className="h-4 w-4 text-success" /> : <X className="h-4 w-4 text-danger" />}
+                    <span className={canvasConnected ? "" : "text-muted"}>Canvas {canvasConnected ? `conectado (${courseCount} materias)` : "— pendiente"}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Settings2 className="h-4 w-4 text-accent" />
-                    <span>
-                      Tarea auto: <span className="font-medium">{autoHomework ? "activada" : "desactivada"}</span>
-                    </span>
+                    <span>Tarea auto: <span className="font-medium">{autoHomework ? "activada" : "desactivada"}</span></span>
                   </li>
                 </ul>
               </div>
@@ -351,28 +284,17 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
           {step > 0 ? (
             <button onClick={() => setStep(step - 1)} className="flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground">
-              <ChevronLeft className="h-4 w-4" />
-              Atras
+              <ChevronLeft className="h-4 w-4" /> Atras
             </button>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
 
           {step < TOTAL_STEPS - 1 ? (
-            <button
-              onClick={() => setStep(step + 1)}
-              className="flex h-10 items-center gap-1.5 rounded-xl bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-            >
-              Siguiente
-              <ChevronRight className="h-4 w-4" />
+            <button onClick={() => setStep(step + 1)} className="flex h-10 items-center gap-1.5 rounded-xl bg-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover">
+              Siguiente <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
-            <button
-              onClick={onComplete}
-              className="flex h-10 items-center gap-2 rounded-xl bg-accent px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-            >
-              <Check className="h-4 w-4" />
-              Empezar a usar CanvasBot
+            <button onClick={onComplete} className="flex h-10 items-center gap-2 rounded-xl bg-accent px-6 text-sm font-semibold text-white transition-colors hover:bg-accent-hover">
+              <Check className="h-4 w-4" /> Empezar
             </button>
           )}
         </div>
