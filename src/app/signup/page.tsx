@@ -37,7 +37,11 @@ export default function SignupPage() {
     });
 
     if (signUpError) {
-      setError(signUpError.message);
+      if (signUpError.message.toLowerCase().includes("rate limit")) {
+        setError("Demasiados intentos. Desactiva 'Confirm email' en Supabase (Authentication > Providers > Email) y espera unos minutos.");
+      } else {
+        setError(signUpError.message);
+      }
       setLoading(false);
       return;
     }
