@@ -1,10 +1,11 @@
+import Link from "next/link";
 import {
   BookOpen,
   Clock,
   AlertTriangle,
   Bell,
   TrendingUp,
-  Wifi,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SetupBanner } from "./components/setup-banner";
@@ -228,16 +229,17 @@ export default async function DashboardOverview() {
             {allCourses.map((course) => {
               const counts = courseAssignmentCounts.get(course.id);
               return (
-                <div
+                <Link
                   key={course.id}
-                  className="rounded-2xl border border-border bg-card p-5 transition-colors hover:bg-card-hover"
+                  href={`/dashboard/courses/${course.id}`}
+                  className="group rounded-2xl border border-border bg-card p-5 transition-all hover:border-accent/30 hover:bg-card-hover"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold">{course.name}</h3>
+                      <h3 className="font-semibold group-hover:text-accent transition-colors">{course.name}</h3>
                       {course.code && <p className="text-sm text-muted">{course.code}</p>}
                     </div>
-                    <Wifi className="h-4 w-4 text-success" />
+                    <ChevronRight className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
                   </div>
                   <div className="mt-4 flex gap-4 text-sm text-muted">
                     <span>{counts?.total ?? 0} tareas</span>
@@ -245,7 +247,7 @@ export default async function DashboardOverview() {
                       <span className="text-warning">{counts!.pending} pendientes</span>
                     )}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

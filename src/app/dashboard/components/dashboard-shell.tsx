@@ -13,11 +13,13 @@ import {
   LogOut,
   Menu,
   X,
+  Layers,
 } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Inicio", icon: LayoutDashboard },
+  { href: "/dashboard/courses", label: "Materias", icon: Layers },
   { href: "/dashboard/assignments", label: "Tareas", icon: BookOpen },
   { href: "/dashboard/announcements", label: "Anuncios", icon: Bell },
   { href: "/dashboard/chat", label: "Chat IA", icon: MessageSquare },
@@ -55,7 +57,9 @@ export function DashboardShell({
 
       <nav className="flex-1 space-y-1 px-3 pt-4">
         {navItems.map((item) => {
-          const active = pathname === item.href;
+          const active = item.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
