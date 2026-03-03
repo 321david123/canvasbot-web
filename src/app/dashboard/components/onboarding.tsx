@@ -142,39 +142,22 @@ export function Onboarding({ userName, onComplete }: OnboardingProps) {
                 )}
               </div>
 
-              {/* Terminal commands */}
+              {/* Terminal command */}
               <div className="rounded-xl bg-background p-4">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
                   Para conectar o actualizar datos
                 </p>
                 <p className="text-sm text-muted">
-                  En tu computadora, en la carpeta del proyecto CanvasBot, ejecuta en la terminal:
+                  En tu computadora, en la carpeta del proyecto CanvasBot, ejecuta en la terminal. Se abre un navegador donde inicias sesión en Canvas, luego se escanea todo y se sube aquí automáticamente.
                 </p>
 
                 <div className="mt-3 flex items-center gap-2">
                   <code className="flex-1 rounded-lg border border-border bg-card px-3 py-2 font-mono text-xs text-accent">
-                    npm run canvas:login
+                    npm run canvas:setup
                   </code>
                   <button
                     type="button"
-                    onClick={() => copyToClipboard("npm run canvas:login")}
-                    className="shrink-0 rounded-lg border border-border p-2 text-muted hover:bg-card-hover hover:text-foreground"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <p className="mt-3 text-sm text-muted">
-                  Luego, para escanear y subir datos a este dashboard:
-                </p>
-
-                <div className="mt-2 flex items-center gap-2">
-                  <code className="flex-1 rounded-lg border border-border bg-card px-3 py-2 font-mono text-xs text-accent">
-                    npm run canvas:scrape && npm run sync
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard("npm run canvas:scrape && npm run sync")}
+                    onClick={() => copyToClipboard("npm run canvas:setup")}
                     className="shrink-0 rounded-lg border border-border p-2 text-muted hover:bg-card-hover hover:text-foreground"
                   >
                     <Copy className="h-4 w-4" />
