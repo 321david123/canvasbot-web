@@ -55,8 +55,16 @@ export default async function CourseDetailPage({ params }: PageProps) {
     .eq("course_id", id)
     .order("posted_at", { ascending: false });
 
+  const { data: lectureSessions } = await supabase
+    .from("lecture_sessions")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("course_id", id)
+    .order("started_at", { ascending: false });
+
   const allAssignments = assignments ?? [];
   const allAnnouncements = announcements ?? [];
+  const allLectures = lectureSessions ?? [];
 
   // Build timeline events
   const events: TimelineEvent[] = [];
@@ -92,6 +100,18 @@ export default async function CourseDetailPage({ params }: PageProps) {
         ? ann.message.replace(/<[^>]*>/g, "").slice(0, 80)
         : undefined,
       url: ann.html_url,
+    });
+  }
+
+  for (const lec of allLectures) {
+    const date = lec.started_at || lec.ended_at;
+    if (!date) continue;
+    events.push({
+      id: lec.id,
+      type: "lecture",
+      title: lec.title || "Clase grabada",
+      date,
+      meta: lec.summary ? lec.summary.replace(/\s+/g, " ").slice(0, 80) : undefined,
     });
   }
 
@@ -189,6 +209,54 @@ export default async function CourseDetailPage({ params }: PageProps) {
         </div>
         <CourseTimeline events={events} courseName={course.name} />
       </div>
+
+      {/* Lecture recordings */}
+      {allLectures.length > 0 && (
+        <div>
+          <h2 className="mb-4 text-lg font-semibold">Clases grabadas</h2>
+          <div className="space-y-3">
+            {allLectures.map((lec) => (
+              <div
+                key={lec.id}
+                className="rounded-xl border border-border bg-card p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-success/10">
+                    <Mic className="h-3.5 w-3.5 text-success" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{lec.title || "Clase grabada"}</p>
+                    {(lec.started_at || lec.ended_at) && (
+                      <p className="mt-1 text-xs text-muted">
+                        {new Date(lec.started_at || lec.ended_at!).toLocaleDateString("es-MX", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
+                    {lec.summary && (
+                      <p className="mt-2 text-sm text-muted whitespace-pre-wrap">{lec.summary}</p>
+                    )}
+                    {lec.transcript && (
+                      <details className="mt-3">
+                        <summary className="cursor-pointer text-xs font-medium text-accent hover:text-accent-hover">
+                          Ver transcripción
+                        </summary>
+                        <p className="mt-2 max-h-48 overflow-y-auto rounded-lg bg-background p-3 text-xs text-muted whitespace-pre-wrap">
+                          {lec.transcript}
+                        </p>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent announcements */}
       {allAnnouncements.length > 0 && (

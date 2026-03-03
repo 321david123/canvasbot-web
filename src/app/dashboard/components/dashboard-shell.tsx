@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Layers,
+  Zap,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,9 +30,11 @@ const navItems = [
 export function DashboardShell({
   userName,
   children,
+  onOpenSetup,
 }: {
   userName: string;
   children: React.ReactNode;
+  onOpenSetup?: () => void;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -76,6 +79,19 @@ export function DashboardShell({
             </Link>
           );
         })}
+
+        {onOpenSetup && (
+          <button
+            onClick={() => {
+              setMobileOpen(false);
+              onOpenSetup();
+            }}
+            className="mt-3 flex w-full items-center gap-3 rounded-xl border border-dashed border-accent/30 px-3 py-2.5 text-sm text-accent transition-colors hover:bg-accent/5"
+          >
+            <Zap className="h-4.5 w-4.5" />
+            Configurar
+          </button>
+        )}
       </nav>
 
       <div className="border-t border-border p-4">

@@ -2,34 +2,39 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+// In dev we always "log in" as someone so you never see the login page.
+const DEV_PLACEHOLDER_ID = "00000000-0000-0000-0000-000000000000";
+
+function fakeUser(id: string) {
+  return {
+    id,
+    email: "dev@tec.mx",
+    user_metadata: { full_name: "Dev User" },
+    app_metadata: {},
+    aud: "authenticated",
+    created_at: new Date().toISOString(),
+  } as any;
+}
+
 export async function createClient() {
-  // Dev bypass: if DEV_USER_ID is set, use service-role client so all queries
-  // work without a real auth session. Only active in local dev.
-  if (process.env.DEV_USER_ID && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const client = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false } }
-    );
+  const isDev = process.env.NODE_ENV === "development";
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
-    // Patch auth.getUser() to return the dev user
-    const devUserId = process.env.DEV_USER_ID;
-    const origGetUser = client.auth.getUser.bind(client.auth);
-    client.auth.getUser = async () => ({
-      data: {
-        user: {
-          id: devUserId,
-          email: "dev@tec.mx",
-          user_metadata: { full_name: "Dev User" },
-          app_metadata: {},
-          aud: "authenticated",
-          created_at: new Date().toISOString(),
-        } as any,
-      },
-      error: null,
+  // Dev: use service-role so queries work; fake user so no login needed.
+  if (isDev && url && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const client = createSupabaseClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
     });
-
+    const userId = process.env.DEV_USER_ID || DEV_PLACEHOLDER_ID;
+    client.auth.getUser = async () => ({ data: { user: fakeUser(userId) }, error: null });
     return client as any;
+  }
+
+  // Dev without service role: fake user so dashboard renders (data empty until you set SUPABASE_SERVICE_ROLE_KEY + DEV_USER_ID).
+  if (isDev && url && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    const anon = createSupabaseClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+    anon.auth.getUser = async () => ({ data: { user: fakeUser(DEV_PLACEHOLDER_ID) }, error: null });
+    return anon as any;
   }
 
   const cookieStore = await cookies();

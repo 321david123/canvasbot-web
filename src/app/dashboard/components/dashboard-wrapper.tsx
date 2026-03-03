@@ -9,10 +9,7 @@ interface DashboardWrapperProps {
   children: React.ReactNode;
 }
 
-export function DashboardWrapper({
-  userName,
-  children,
-}: DashboardWrapperProps) {
+export function DashboardWrapper({ userName, children }: DashboardWrapperProps) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -34,7 +31,9 @@ export function DashboardWrapper({
       {mounted && showOnboarding && (
         <Onboarding userName={userName} onComplete={handleOnboardingComplete} />
       )}
-      <DashboardShell userName={userName}>{children}</DashboardShell>
+      <DashboardShell userName={userName} onOpenSetup={() => setShowOnboarding(true)}>
+        {children}
+      </DashboardShell>
     </>
   );
 }

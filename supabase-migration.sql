@@ -74,6 +74,26 @@ create policy "Users update own announcements" on announcements for update using
 -- Service-role can do anything (used by the fly.io backend server)
 -- Note: service_role key bypasses RLS by default in Supabase, so no extra policies needed.
 
+-- Lecture sessions (from local listen-class recordings, synced via npm run sync)
+create table if not exists lecture_sessions (
+  id text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  course_id text not null,
+  title text,
+  started_at timestamptz,
+  ended_at timestamptz,
+  transcript text,
+  summary text,
+  updated_at timestamptz default now(),
+  primary key (id, user_id)
+);
+alter table lecture_sessions enable row level security;
+create policy "Users read own lecture_sessions" on lecture_sessions for select using (auth.uid() = user_id);
+create policy "Users write own lecture_sessions" on lecture_sessions for insert with check (auth.uid() = user_id);
+create policy "Users update own lecture_sessions" on lecture_sessions for update using (auth.uid() = user_id);
+create index if not exists idx_lecture_sessions_user_course on lecture_sessions(user_id, course_id);
+create index if not exists idx_lecture_sessions_started on lecture_sessions(user_id, started_at desc);
+
 -- Indexes
 create index if not exists idx_assignments_user_course on assignments(user_id, course_id);
 create index if not exists idx_assignments_due on assignments(user_id, due_at);
